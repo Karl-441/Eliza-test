@@ -1,0 +1,58 @@
+[
+    {
+        "username": "admin",
+        "password_hash": "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+        "role": "admin",
+        "status": "active",
+        "client_name": "System Admin",
+        "client_id": "",
+        "client_secret": "",
+        "created_at": "2025-12-11T19:19:44.632151",
+        "last_login": "2025-12-13T03:37:52.583780",
+        "notifications": [],
+        "failed_login_attempts": 0,
+        "lockout_until": null,
+        "profile": {},
+        "tts_preferences": {
+            "voice_id": "default",
+            "speed": 100,
+            "pitch": 0,
+            "volume": 100,
+            "language": "zh"
+        },
+        "is_2fa_enabled": false,
+        "expiration": null,
+        "history": []
+    },
+    {
+        "username": "test_user",
+        "password_hash": "08fa299aecc0c034e037033e3b0bbfaef26b78c742f16cf88ac3194502d6c394",
+        "role": "user",
+        "status": "active",
+        "client_name": "Manual Created",
+        "client_id": "e5af957a47bd292c",
+        "client_secret": "06d5b462695d69355d67223a8574749750c4b90600429f303a311f87e29cdc8c",
+        "created_at": "2025-12-11T19:19:44.632890",
+        "last_login": "2025-12-11T19:19:44.635419",
+        "notifications": [],
+        "failed_login_attempts": 0,
+        "lockout_until": null,
+        "profile": {},
+        "tts_preferences": {
+            "voice_id": "default",
+            "speed": 100,
+            "pitch": 0,
+            "volume": 100,
+            "language": "zh"
+        },
+        "is_2fa_enabled": false,
+        "expiration": null,
+        "history": [
+            {
+                "action": "ACCOUNT_CREATED",
+                "details": "Account created with role user",
+                "date": "2025-12-11T19:19:44.632919"
+            }
+        ]
+    }
+]

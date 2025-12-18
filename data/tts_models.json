@@ -1,0 +1,30 @@
+[
+    {
+        "id": "ee572246-b3a8-44b3-a261-0540bcc59246",
+        "name": "Standard Female (ZH)",
+        "type": "female",
+        "language": "zh",
+        "speed": 100,
+        "pitch": 0,
+        "volume": 100,
+        "learning_rate": 0.0002,
+        "batch_size": 32,
+        "status": "active",
+        "created_at": "2025-12-18T22:19:46.716245",
+        "updated_at": "2025-12-18T22:19:46.716245"
+    },
+    {
+        "id": "6f366e27-a24a-4f72-80d2-d76172327326",
+        "name": "Tactical Command (EN)",
+        "type": "male",
+        "language": "en",
+        "speed": 110,
+        "pitch": -2,
+        "volume": 120,
+        "learning_rate": 0.0002,
+        "batch_size": 32,
+        "status": "active",
+        "created_at": "2025-12-18T22:19:46.716984",
+        "updated_at": "2025-12-18T22:19:46.716984"
+    }
+]

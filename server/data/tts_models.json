@@ -1,0 +1,44 @@
+[
+    {
+        "id": "23d8a2c3-af95-4ada-8e98-5021953f2ccd",
+        "name": "Standard Female (ZH)",
+        "type": "female",
+        "language": "zh",
+        "speed": 100,
+        "pitch": 0,
+        "volume": 100,
+        "learning_rate": 0.0002,
+        "batch_size": 32,
+        "status": "active",
+        "created_at": "2025-12-11T10:25:53.808488",
+        "updated_at": "2025-12-11T10:25:53.808488"
+    },
+    {
+        "id": "faf63bc4-22a9-4b17-bd3c-7f090f06c9fb",
+        "name": "Tactical Command (EN)",
+        "type": "male",
+        "language": "en",
+        "speed": 110,
+        "pitch": -2,
+        "volume": 120,
+        "learning_rate": 0.0002,
+        "batch_size": 32,
+        "status": "active",
+        "created_at": "2025-12-11T10:25:53.808963",
+        "updated_at": "2025-12-11T10:25:53.808963"
+    },
+    {
+        "id": "7a0f2190-92fe-4051-9247-fa84ee2433d9",
+        "name": "Test Voice",
+        "type": "female",
+        "language": "en",
+        "speed": 100,
+        "pitch": 0,
+        "volume": 100,
+        "learning_rate": 0.0002,
+        "batch_size": 32,
+        "status": "active",
+        "created_at": "2025-12-11T10:25:53.820313",
+        "updated_at": "2025-12-11T10:25:53.820313"
+    }
+]

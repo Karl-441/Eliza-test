@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Eliza System</title>
+    <script src="/static/assets/js/tailwindcss.js"></script>
+    <style>
+        body { background-color: #141414; color: #E0E0E0; font-family: 'Segoe UI', sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center">
+    <div class="bg-gray-800 p-8 rounded border border-gray-700 w-full max-w-md shadow-lg border-l-4 border-l-blue-500">
+        <h1 class="text-2xl font-bold mb-6 text-blue-500 tracking-widest text-center">REQUEST ACCESS</h1>
+        <form id="regForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">COMMANDER ID (Username)</label>
+                <input type="text" id="username" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">ACCESS CODE (Password)</label>
+                <input type="password" id="password" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none" required>
+                <p class="text-xs text-gray-500 mt-1">Min 8 chars, Uppercase, Lowercase, Number</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-400 mb-1">UNIT DESIGNATION (Client Name)</label>
+                <input type="text" id="client_name" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-blue-500 focus:outline-none" required>
+            </div>
+            <div id="msg" class="text-sm hidden text-center p-2 rounded"></div>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded transition-colors">
+                SUBMIT REQUEST
+            </button>
+            <div class="text-center text-xs mt-4">
+                <a href="/static/login.html" class="text-gray-500 hover:text-white">Return to Login</a>
+            </div>
+        </form>
+    </div>
+    <script>
+        document.getElementById('regForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const client_name = document.getElementById('client_name').value;
+            const msgDiv = document.getElementById('msg');
+            
+            msgDiv.classList.add('hidden');
+            msgDiv.className = 'text-sm hidden text-center p-2 rounded'; // Reset classes
+
+            try {
+                const res = await fetch('/api/v1/dashboard/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password, client_name})
+                });
+                
+                const data = await res.json();
+                
+                msgDiv.classList.remove('hidden');
+                if (res.ok) {
+                    msgDiv.textContent = "Registration successful! Awaiting admin approval.";
+                    msgDiv.classList.add('bg-green-900', 'text-green-200');
+                    document.getElementById('regForm').reset();
+                } else {
+                    msgDiv.textContent = data.detail || "Registration failed.";
+                    msgDiv.classList.add('bg-red-900', 'text-red-200');
+                }
+            } catch (err) {
+                console.error(err);
+                msgDiv.classList.remove('hidden');
+                msgDiv.textContent = "Connection Error";
+                msgDiv.classList.add('bg-red-900', 'text-red-200');
+            }
+        });
+    </script>
+</body>
+</html>

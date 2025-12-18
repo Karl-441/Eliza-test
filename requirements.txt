@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+llama-cpp-python
+pydantic
+ddgs
+PyQt5
+requests
+websockets
+python-multipart
+aiofiles
+jinja2
+faster-whisper
+sounddevice
+numpy
+scipy
+cryptography>=3.4.7

@@ -1,0 +1,64 @@
+import os
+import json
+from pathlib import Path
+from pydantic import BaseModel
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+CONFIG_DIR = BASE_DIR / "config"
+LLM_DIR = BASE_DIR / "llm"
+
+class Settings(BaseModel):
+    # LLM Settings
+    model_path: str = str(LLM_DIR / "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+    n_ctx: int = 4096
+    n_threads: int = 4
+    temperature: float = 0.7
+    top_p: float = 0.9
+    
+    # Server Settings
+    host: str = "0.0.0.0"
+    port: int = 8000
+    
+    # Search Settings
+    enable_search: bool = True
+
+    # Audio Settings
+    enable_audio: bool = False
+    tts_api_url: str = "http://127.0.0.1:9880"  # Default GPT-SoVITS port
+    tts_speed: float = 1.0
+    tts_volume: float = 1.0
+    tts_pitch: float = 1.0
+    voice_presets: dict = {
+        "default": {
+            "ref_audio_path": "voices/default.wav",
+            "prompt_text": "你好，我是Eliza。",
+            "prompt_language": "zh",
+            "name": "Default (Eliza)"
+        }
+    }
+    
+    # Security Settings
+    admin_user: str = "admin"
+    admin_password_hash: str = "" # Empty means default "admin" (will handle in auth logic) or uninitialized
+    jwt_secret: str = "change_this_to_a_random_secret_key"
+    
+    # Paths
+    memory_path: str = str(DATA_DIR / "memory.json")
+    user_profile_path: str = str(DATA_DIR / "user_profile.json")
+
+    def save(self, path=None):
+        target = Path(path) if path else (CONFIG_DIR / "settings.json")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "w", encoding="utf-8") as f:
+            f.write(self.model_dump_json(indent=4))
+
+    @classmethod
+    def load(cls, path=None):
+        target = Path(path) if path else (CONFIG_DIR / "settings.json")
+        if target.exists():
+            with open(target, "r", encoding="utf-8") as f:
+                return cls(**json.load(f))
+        return cls()
+
+settings = Settings.load()

@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliza Command Dashboard</title>
+    <!-- Vue 3 -->
+    <script src="/static/assets/js/vue.global.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="/static/assets/js/tailwindcss.js"></script>
+    <!-- Chart.js -->
+    <script src="/static/assets/js/chart.js"></script>
+    <!-- Three.js -->
+    <script src="/static/assets/js/three.min.js"></script>
+    <style>
+        [v-cloak] { display: none !important; }
+        :root {
+            --bg-color: #141414;
+            --accent-color: #FFB400;
+            --text-color: #E0E0E0;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .gfl-card {
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid #333;
+            border-left: 3px solid var(--accent-color);
+        }
+        .gfl-btn {
+            background: rgba(255, 180, 0, 0.1);
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            transition: all 0.2s;
+            font-size: clamp(var(--btn-font-min, 12px), var(--btn-font-scale, 1.1vw), var(--btn-font-max, 16px));
+            padding: clamp(var(--btn-pad-y-min, 6px), var(--btn-pad-y-scale, 0.8vw), var(--btn-pad-y-max, 12px)) clamp(var(--btn-pad-x-min, 10px), var(--btn-pad-x-scale, 1.2vw), var(--btn-pad-x-max, 18px));
+            min-width: clamp(var(--btn-min-w-min, 84px), var(--btn-min-w-scale, 10vw), var(--btn-min-w-max, 200px));
+            max-width: min(100%, var(--btn-max-w, 280px));
+            margin: calc(var(--btn-gap, 8px) / 2);
+            letter-spacing: 0.03em;
+            line-height: 1.2;
+        }
+        .gfl-btn:hover {
+            background: var(--accent-color);
+            color: #000;
+        }
+        .gfl-btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--btn-gap, 8px);
+            align-items: center;
+        }
+        @media (max-width: 768px) {
+            .gfl-btn {
+                max-width: 100%;
+            }
+        }
+        .nav-item {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-bottom: 2px solid transparent;
+            color: #888;
+        }
+        .nav-item.active {
+            border-bottom-color: var(--accent-color);
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        /* Modal */
+        .modal-overlay {
+            background: rgba(0,0,0,0.8);
+        }
+
+        /* --- New Visual Enhancements --- */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+        }
+
+        /* Streamer Edge Effect */
+        .edge-streamer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+        }
+        .edge-streamer::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            animation: scanline 4s linear infinite;
+            opacity: 0.5;
+        }
+        .edge-streamer::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            animation: scanline 4s linear infinite reverse;
+            opacity: 0.5;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Tab Transitions */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.22s ease }
+        .fade-enter-from, .fade-leave-to { opacity: 0 }
+        .page-enter-active, .page-leave-active { transition: opacity 0.25s ease, transform 0.25s ease, filter 0.25s ease }
+        .page-enter-from { opacity: 0; transform: translateY(8px) scale(0.995); filter: blur(2px) }
+        .page-leave-to { opacity: 0; transform: translateY(-8px) scale(0.995); filter: blur(2px) }
+        
+        /* TTS Custom Styles */
+        .slider-track {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            outline: none;
+        }
+        .slider-track::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .slider-track::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6 relative">
+    <!-- 3D Background -->
+    <div id="canvas-container"></div>
+    <!-- Edge Decoration -->
+    <div class="edge-streamer"></div>
+
+    <div id="app" class="max-w-7xl mx-auto" v-cloak>
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+            <div>
+                <h1 class="text-3xl font-bold tracking-widest text-yellow-500">COMMAND CENTER</h1>
+                <p class="text-gray-500 text-sm">Eliza Tactical Backend System</p>
+                <!-- Settings Modal -->
+        <div v-if="showSettingsModal" class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+            <div class="bg-gray-800 p-6 rounded border border-yellow-500 w-full max-w-md">
+                <h2 class="text-xl font-bold text-yellow-500 mb-6">GLOBAL TTS CONFIG</h2>
+                <form @submit.prevent="saveTTSSettings" class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Default Format</label>
+                        <select v-model="ttsSettings.default_format" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                            <option value="wav">WAV</option>
+                            <option value="mp3">MP3</option>
+                            <option value="ogg">OGG</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Max Concurrency</label>
+                        <input type="number" v-model.number="ttsSettings.max_concurrency" min="1" max="100" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Compute Device</label>
+                        <select v-model="ttsSettings.device" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                            <option value="cpu">CPU</option>
+                            <option value="cuda">CUDA (GPU)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" v-model="ttsSettings.cache_enabled" id="chk_cache" class="w-4 h-4 bg-gray-900 border-gray-700 rounded">
+                        <label for="chk_cache" class="text-sm text-gray-300">Enable Audio Caching</label>
+                    </div>
+                    <div class="flex gap-4 pt-4 border-t border-gray-700">
+                        <button type="button" @click="showSettingsModal = false" class="flex-1 py-2 border border-gray-600 rounded text-gray-400">CANCEL</button>
+                        <button type="submit" class="flex-1 gfl-btn py-2 rounded bg-yellow-500 text-black hover:bg-yellow-400">SAVE CONFIG</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit TTS Modal -->
+        <div v-if="showEditTTSModal" class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+            <div class="bg-gray-800 p-6 rounded border border-yellow-500 w-full max-w-md">
+                <h2 class="text-xl font-bold text-yellow-500 mb-6">EDIT MODEL: {{ editingTTS.name }}</h2>
+                <form @submit.prevent="updateTTSModel" class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Language</label>
+                        <select v-model="editingTTS.language" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                            <option value="zh">Chinese (ZH)</option>
+                            <option value="en">English (EN)</option>
+                            <option value="ja">Japanese (JA)</option>
+                        </select>
+                    </div>
+                    <div>
+                         <label class="block text-sm text-gray-400 mb-1">Voice Type</label>
+                         <select v-model="editingTTS.type" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                             <option value="female">Female</option>
+                             <option value="male">Male</option>
+                             <option value="neutral">Neutral</option>
+                         </select>
+                    </div>
+                    <div class="flex gap-4 pt-4 border-t border-gray-700">
+                        <button type="button" @click="showEditTTSModal = false" class="flex-1 py-2 border border-gray-600 rounded text-gray-400">CANCEL</button>
+                        <button type="submit" class="flex-1 gfl-btn py-2 rounded bg-yellow-500 text-black hover:bg-yellow-400">UPDATE</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Create TTS Model Modal -->
+        <div v-if="showCreateTTSModal" class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+            <div class="bg-gray-800 p-6 rounded border border-yellow-500 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <h2 class="text-xl font-bold text-yellow-500 mb-6">NEW TTS MODEL CONFIGURATION</h2>
+                <form @submit.prevent="submitTTSModel" class="space-y-6">
+                    <!-- Basic Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Model Name</label>
+                            <input type="text" v-model="newTTS.name" required maxlength="32" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Language</label>
+                            <select v-model="newTTS.language" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                                <option value="zh">Chinese (ZH)</option>
+                                <option value="en">English (EN)</option>
+                                <option value="ja">Japanese (JA)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Voice Type</label>
+                            <select v-model="newTTS.type" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                                <option value="female">Female</option>
+                                <option value="male">Male</option>
+                                <option value="neutral">Neutral</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Preview Text</label>
+                            <input type="text" v-model="newTTS.preview_text" maxlength="200" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white" placeholder="输入用于预览的文本">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Voice ID</label>
+                            <select v-model="newTTS.voice_id" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                                <option value="default">default</option>
+                                <option v-for="(v, id) in voices" :key="id" :value="id">{{ id }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Audio Parameters -->
+                    <div class="bg-gray-900 p-4 rounded border border-gray-700">
+                        <h3 class="text-sm font-bold text-gray-300 mb-4 uppercase">Audio Parameters</h3>
+                        
+                        <div class="mb-4">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-xs text-gray-400">Speed ({{ newTTS.speed }}%)</span>
+                            </div>
+                            <input type="range" v-model.number="newTTS.speed" min="50" max="200" class="slider-track">
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-xs text-gray-400">Pitch ({{ newTTS.pitch > 0 ? '+' : ''}}{{ newTTS.pitch }})</span>
+                            </div>
+                            <input type="range" v-model.number="newTTS.pitch" min="-12" max="12" class="slider-track">
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-xs text-gray-400">Volume ({{ newTTS.volume }}%)</span>
+                            </div>
+                            <input type="range" v-model.number="newTTS.volume" min="0" max="150" class="slider-track">
+                        </div>
+                    </div>
+
+                    <!-- Advanced -->
+                    <div class="bg-gray-900 p-4 rounded border border-gray-700">
+                        <h3 class="text-sm font-bold text-gray-300 mb-4 uppercase">Advanced Config</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Learning Rate</label>
+                                <input type="number" v-model="newTTS.learning_rate" step="0.0001" class="w-full bg-gray-800 border border-gray-600 rounded p-1 text-xs text-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Batch Size</label>
+                                <input type="number" v-model="newTTS.batch_size" class="w-full bg-gray-800 border border-gray-600 rounded p-1 text-xs text-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-4 pt-4 border-t border-gray-700">
+                        <button type="button" @click="previewNewTTS" class="flex-1 gfl-btn py-2 rounded">PREVIEW (5s)</button>
+                        <button type="button" @click="showCreateTTSModal = false" class="flex-1 py-2 border border-gray-600 rounded text-gray-400">CANCEL</button>
+                        <button type="submit" class="flex-1 gfl-btn py-2 rounded bg-yellow-500 text-black hover:bg-yellow-400">SAVE MODEL</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+            <div class="flex items-center gap-4 gfl-btn-group">
+                <div class="text-right">
+                    <div class="text-xs text-gray-400">STATUS</div>
+                    <div class="font-mono text-green-500" v-if="connected">ONLINE</div>
+                    <div class="font-mono text-red-500" v-else>OFFLINE</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xs text-gray-400">USER</div>
+                    <div class="font-mono text-yellow-500">{{ currentUser?.username || 'GUEST' }}</div>
+                </div>
+                <button @click="logout" class="gfl-btn px-4 py-2 rounded text-sm font-bold border-red-500 text-red-500 hover:bg-red-500 hover:text-white ml-4">
+                    LOGOUT
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <div class="flex mb-6 border-b border-gray-800">
+            <div class="nav-item" :class="{active: currentTab === 'dashboard'}" @click="currentTab = 'dashboard'">DASHBOARD</div>
+            <div class="nav-item" :class="{active: currentTab === 'users'}" @click="currentTab = 'users'" v-if="currentUser?.role === 'admin'">USER MANAGEMENT</div>
+            <div class="nav-item" :class="{active: currentTab === 'tts'}" @click="fetchTTSModels(); fetchTTSHealth(); fetchVoices(); currentTab = 'tts'" v-if="currentUser?.role === 'admin'">TTS CONFIGURATION</div>
+            <div class="nav-item" :class="{active: currentTab === 'profile'}" @click="fetchProfile(); currentTab = 'profile'">MY PROFILE</div>
+        </div>
+
+        <!-- TAB: DASHBOARD -->
+        <transition name="page" mode="out-in">
+        <div v-if="currentTab === 'dashboard'" class="grid grid-cols-1 md:grid-cols-3 gap-6" key="dashboard">
+            <!-- Model Status -->
+            <div class="gfl-card p-4 rounded col-span-1">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-yellow-500 flex items-center">
+                        <span class="mr-2">◈</span> NEURAL CLOUD
+                    </h2>
+                    <button v-if="currentUser?.role === 'admin'" @click="reloadModel" class="gfl-btn px-2 py-1 text-xs rounded">RELOAD</button>
+                </div>
+                <!-- Model Selector (Admin Only) -->
+                <div v-if="currentUser?.role === 'admin'" class="mb-4">
+                     <select @change="loadModel($event.target.value)" class="w-full bg-gray-900 border border-gray-700 text-xs p-1 rounded text-gray-300">
+                         <option value="" disabled selected>Select Model to Load...</option>
+                         <option v-for="m in availableModels" :key="m.name" :value="m.name">
+                             {{ m.name }} ({{ m.size_mb }} MB)
+                         </option>
+                     </select>
+                </div>
+
+                <div class="space-y-3" v-if="stats.model">
+                    <div class="flex justify-between border-b border-gray-700 pb-1">
+                        <span class="text-gray-400">Model Name</span>
+                        <span class="font-mono text-white text-xs truncate max-w-[150px]" :title="stats.model.name">{{ stats.model.name }}</span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-700 pb-1">
+                        <span class="text-gray-400">Status</span>
+                        <span :class="{
+                            'text-green-400': stats.model.status === 'ready',
+                            'text-yellow-400': stats.model.status === 'loading',
+                            'text-red-400': stats.model.status === 'error'
+                        }">{{ stats.model.status.toUpperCase() }}</span>
+                    </div>
+                    <div v-if="stats.model.error" class="text-red-400 text-xs bg-red-900/20 p-2 rounded border border-red-900">
+                        Error: {{ stats.model.error }}
+                    </div>
+                    <div class="flex justify-between border-b border-gray-700 pb-1">
+                        <span class="text-gray-400">Context Window</span>
+                        <span class="font-mono">{{ stats.model.context_window }} tokens</span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-700 pb-1">
+                        <span class="text-gray-400">Memory Usage</span>
+                        <span class="font-mono">{{ stats.model.process_memory_gb || 'N/A' }} GB</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Loaded At</span>
+                        <span class="font-mono text-xs">{{ stats.model.loaded_at ? formatTime(stats.model.loaded_at) : 'N/A' }}</span>
+                    </div>
+                </div>
+                <div v-else class="text-center py-8 text-gray-500">Connecting to Neural Cloud...</div>
+            </div>
+
+            <!-- System Resources -->
+            <div class="gfl-card p-4 rounded col-span-1">
+                <h2 class="text-xl font-bold mb-4 text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> SYSTEM RESOURCES
+                </h2>
+                <div class="space-y-4" v-if="stats.system">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-gray-400">CPU Load</span>
+                            <span class="text-sm font-mono">{{ stats.system.cpu_percent }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded-full h-2">
+                            <div class="bg-yellow-500 h-2 rounded-full" :style="{ width: stats.system.cpu_percent + '%' }"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm text-gray-400">RAM Usage ({{ stats.system.memory_used_gb }}/{{ stats.system.memory_total_gb }} GB)</span>
+                            <span class="text-sm font-mono">{{ stats.system.memory_percent }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" :style="{ width: stats.system.memory_percent + '%' }"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="gfl-card p-4 rounded col-span-1">
+                <h2 class="text-xl font-bold mb-4 text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> CONFIGURATION
+                </h2>
+                <div v-if="stats.settings" class="space-y-3 text-sm">
+                    <div class="bg-gray-800 p-2 rounded">
+                        <div class="text-gray-400 text-xs uppercase mb-1">Audio System (TTS)</div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span>Enabled</span>
+                            <span :class="stats.settings.tts_settings.enabled ? 'text-green-400' : 'text-gray-500'">
+                                {{ stats.settings.tts_settings.enabled ? 'YES' : 'NO' }}
+                            </span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="previewTTS" class="gfl-btn w-full py-1 text-xs rounded flex items-center justify-center">
+                                <span class="mr-1">▶</span> TEST
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 p-2 rounded">
+                        <div class="text-gray-400 text-xs uppercase mb-1">Timezone</div>
+                        <div class="font-mono">{{ stats.settings.time_settings.timezone }}</div>
+                        <div class="text-gray-500 text-xs mt-1">{{ stats.settings.time_settings.system_time }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client Management -->
+            <div class="gfl-card p-4 rounded col-span-3">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-yellow-500 flex items-center">
+                        <span class="mr-2">◈</span> ACTIVE LINKS
+                    </h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-gray-400 uppercase">
+                            <tr>
+                                <th class="p-3">Client ID</th>
+                                <th class="p-3">IP Address</th>
+                                <th class="p-3">User Agent</th>
+                                <th class="p-3">Connected At</th>
+                                <th class="p-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <tr v-for="client in stats.clients" :key="client.id" class="hover:bg-gray-800">
+                                <td class="p-3 font-mono text-xs">{{ client.id }}</td>
+                                <td class="p-3 font-mono">{{ client.ip }}</td>
+                                <td class="p-3 truncate max-w-xs" :title="client.user_agent">
+                                    <span v-if="client.user_agent.includes('Eliza-Desktop')" class="bg-yellow-500 text-black px-1 rounded text-xs mr-1 font-bold">APP</span>
+                                    <span v-else class="bg-gray-600 text-white px-1 rounded text-xs mr-1">WEB</span>
+                                    {{ client.user_agent }}
+                                </td>
+                                <td class="p-3">{{ formatTime(client.connected_at) }}</td>
+                                <td class="p-3 flex gap-2">
+                                    <button @click="notifyClient(client.id)" class="gfl-btn px-2 py-1 text-xs rounded">NOTIFY</button>
+                                    <button @click="kickClient(client.id)" class="gfl-btn px-2 py-1 text-xs rounded border-red-500 text-red-500 hover:bg-red-500">KICK</button>
+                                </td>
+                            </tr>
+                            <tr v-if="!stats.clients || stats.clients.length === 0">
+                                <td colspan="5" class="p-4 text-center text-gray-500">No active links detected.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: USER MANAGEMENT -->
+        <div v-else-if="currentTab === 'users'" class="gfl-card p-4 rounded" key="users">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> PERSONNEL DATABASE
+                </h2>
+                <div class="flex gap-2 flex-wrap gfl-btn-group">
+                    <input type="text" v-model="userSearch" placeholder="Search users..." class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white">
+                    <button @click="openCreateUserModal" class="gfl-btn px-3 py-1 text-sm rounded bg-yellow-500/10 text-yellow-500">+ NEW USER</button>
+                    <button @click="createGuest" class="gfl-btn px-3 py-1 text-sm rounded bg-blue-500/10 text-blue-400">+ GUEST</button>
+                    <div v-if="selectedUsers.length > 0" class="flex gap-2">
+                        <button @click="batchAction('enable')" class="gfl-btn px-2 py-1 text-xs rounded border-green-500 text-green-500">ENABLE</button>
+                        <button @click="batchAction('disable')" class="gfl-btn px-2 py-1 text-xs rounded border-yellow-500 text-yellow-500">DISABLE</button>
+                        <button @click="batchAction('delete')" class="gfl-btn px-2 py-1 text-xs rounded border-red-500 text-red-500">DELETE</button>
+                    </div>
+                    <button @click="fetchUsers" class="gfl-btn px-2 py-1 text-sm rounded">REFRESH</button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-800 text-gray-400 uppercase">
+                        <tr>
+                            <th class="p-3 w-8"><input type="checkbox" @change="toggleAllUsers" v-model="allSelected"></th>
+                            <th class="p-3">User</th>
+                            <th class="p-3">Role</th>
+                            <th class="p-3">Status</th>
+                            <th class="p-3">Expiration</th>
+                            <th class="p-3">Last Login</th>
+                            <th class="p-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr v-for="user in filteredUsers" :key="user.username" class="hover:bg-gray-800">
+                            <td class="p-3"><input type="checkbox" :value="user.username" v-model="selectedUsers"></td>
+                            <td class="p-3">
+                                <div class="font-bold text-white">{{ user.username }}</div>
+                                <div class="text-xs text-gray-500">{{ user.client_name }}</div>
+                            </td>
+                            <td class="p-3 uppercase text-xs">{{ user.role }}</td>
+                            <td class="p-3">
+                                <span :class="{
+                                    'text-green-400': user.status === 'active',
+                                    'text-yellow-400': user.status === 'pending',
+                                    'text-red-400': user.status === 'rejected'
+                                }" class="uppercase font-bold text-xs">{{ user.status }}</span>
+                            </td>
+                            <td class="p-3 text-xs">{{ user.expiration ? formatTime(user.expiration) : 'Permanent' }}</td>
+                            <td class="p-3 text-xs text-gray-500">{{ formatTime(user.last_login) }}</td>
+                            <td class="p-3 flex gap-2">
+                                <button @click="approveUser(user.username)" v-if="user.status === 'pending'" class="gfl-btn px-2 py-1 text-xs rounded border-green-500 text-green-500">APPROVE</button>
+                                <button @click="rejectUser(user.username)" v-if="user.status === 'pending'" class="gfl-btn px-2 py-1 text-xs rounded border-red-500 text-red-500">REJECT</button>
+                                <button @click="editUser(user)" class="gfl-btn px-2 py-1 text-xs rounded">EDIT</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB: TTS CONFIGURATION -->
+        <div v-else-if="currentTab === 'tts'" class="gfl-card p-4 rounded" key="tts">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> TTS MODULE CONFIGURATION
+                </h2>
+                <div class="flex gap-2 gfl-btn-group">
+                    <div class="text-xs text-gray-400 flex items-center mr-2">
+                        <span class="mr-2">HEALTH</span>
+                        <span :class="ttsHealth?.status ? 'text-green-400' : 'text-red-400'" class="font-mono">
+                            {{ ttsHealth?.status ? 'ONLINE' : 'OFFLINE' }}
+                        </span>
+                    </div>
+                    <button @click="openCreateTTSModal" class="gfl-btn px-3 py-1 text-sm rounded bg-yellow-500/10 text-yellow-500">+ NEW MODEL</button>
+                    <button @click="openSettingsModal" class="gfl-btn px-3 py-1 text-sm rounded">SETTINGS</button>
+                </div>
+            </div>
+
+            <!-- TTS Model List -->
+            <div class="overflow-x-auto mb-6">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-800 text-gray-400 uppercase">
+                        <tr>
+                            <th class="p-3">Model Name</th>
+                            <th class="p-3">Voice Type</th>
+                            <th class="p-3">Language</th>
+                            <th class="p-3">Status</th>
+                            <th class="p-3">Created At</th>
+                            <th class="p-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        <tr v-for="model in ttsModels" :key="model.id" class="hover:bg-gray-800">
+                            <td class="p-3 font-bold text-white">{{ model.name }}</td>
+                            <td class="p-3">{{ model.type }}</td>
+                            <td class="p-3 uppercase">{{ model.language }}</td>
+                            <td class="p-3">
+                                <button @click="toggleTTSModel(model)" :class="model.status === 'active' ? 'text-green-400' : 'text-gray-500'" class="font-bold text-xs uppercase">
+                                    {{ model.status }}
+                                </button>
+                            </td>
+                            <td class="p-3 text-xs text-gray-500">{{ formatTime(model.created_at) }}</td>
+                            <td class="p-3 flex gap-2">
+                                <button @click="previewTTSModel(model)" class="gfl-btn px-2 py-1 text-xs rounded">LISTEN</button>
+                                <button @click="editTTSModel(model)" class="gfl-btn px-2 py-1 text-xs rounded border-blue-500 text-blue-500">EDIT</button>
+                                <button @click="deleteTTSModel(model)" class="gfl-btn px-2 py-1 text-xs rounded border-red-500 text-red-500">DEL</button>
+                            </td>
+                        </tr>
+                        <tr v-if="ttsModels.length === 0">
+                            <td colspan="6" class="p-4 text-center text-gray-500">No TTS models configured.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB: MY PROFILE -->
+        <div v-else-if="currentTab === 'profile'" class="grid grid-cols-1 md:grid-cols-2 gap-6" key="profile">
+            <!-- Profile Info -->
+            <div class="gfl-card p-4 rounded">
+                <h2 class="text-xl font-bold mb-4 text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> MY DOSSIER
+                </h2>
+                <form @submit.prevent="updateProfile" class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Username</label>
+                        <input type="text" :value="userProfile.username" disabled class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-500 cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Role</label>
+                        <input type="text" :value="userProfile.role" disabled class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-gray-500 cursor-not-allowed uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Email</label>
+                        <input type="email" v-model="userProfile.profile.email" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-yellow-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Phone / Contact</label>
+                        <input type="text" v-model="userProfile.profile.phone" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-yellow-500 outline-none">
+                    </div>
+                    <button type="submit" class="gfl-btn w-full py-2 rounded font-bold">UPDATE DOSSIER</button>
+                </form>
+            </div>
+
+            <!-- Security -->
+            <div class="gfl-card p-4 rounded">
+                <h2 class="text-xl font-bold mb-4 text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> SECURITY PROTOCOLS
+                </h2>
+                
+                <div class="mb-6 pb-6 border-b border-gray-700">
+                    <h3 class="font-bold text-white mb-2">Change Password</h3>
+                    <form @submit.prevent="changePassword" class="space-y-2">
+                        <input type="password" v-model="passForm.old" placeholder="Current Password" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm">
+                        <input type="password" v-model="passForm.new" placeholder="New Password (min 8 chars)" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm">
+                        <button type="submit" class="gfl-btn w-full py-2 rounded text-sm">UPDATE PASSWORD</button>
+                    </form>
+                </div>
+
+                <div class="mb-6 pb-6 border-b border-gray-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-white">Two-Factor Auth</h3>
+                        <span :class="userProfile.is_2fa_enabled ? 'text-green-400' : 'text-gray-500'" class="text-sm font-mono">
+                            {{ userProfile.is_2fa_enabled ? 'ENABLED' : 'DISABLED' }}
+                        </span>
+                    </div>
+                    <button @click="toggle2FA" class="w-full py-2 rounded text-sm border transition-colors"
+                        :class="userProfile.is_2fa_enabled ? 'border-red-500 text-red-500 hover:bg-red-900' : 'border-green-500 text-green-500 hover:bg-green-900'">
+                        {{ userProfile.is_2fa_enabled ? 'DISABLE 2FA' : 'ENABLE 2FA' }}
+                    </button>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-white mb-2">Data Export</h3>
+                    <button @click="exportData" class="gfl-btn w-full py-2 rounded text-sm flex items-center justify-center">
+                        DOWNLOAD ARCHIVE (JSON)
+                    </button>
+                </div>
+            </div>
+
+            <!-- History Log -->
+            <div class="gfl-card p-4 rounded col-span-1 md:col-span-2">
+                <h2 class="text-xl font-bold mb-4 text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> ACTIVITY LOG
+                </h2>
+                <div class="max-h-60 overflow-y-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-gray-400 sticky top-0">
+                            <tr>
+                                <th class="p-2">Date</th>
+                                <th class="p-2">Action</th>
+                                <th class="p-2">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <tr v-for="log in userHistory" :key="log.date">
+                                <td class="p-2 font-mono text-xs text-gray-500">{{ formatTime(log.date) }}</td>
+                                <td class="p-2 font-bold text-yellow-500">{{ log.action }}</td>
+                                <td class="p-2 text-gray-300">{{ log.details }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        </transition>
+
+        <!-- Create User Modal -->
+        <div v-if="showCreateUserModal" class="fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+            <div class="bg-gray-800 p-6 rounded border border-yellow-500 w-full max-w-md">
+                <h2 class="text-xl font-bold text-yellow-500 mb-4">NEW PERSONNEL</h2>
+                <form @submit.prevent="submitCreateUser" class="space-y-3">
+                    <input type="text" v-model="newUser.username" placeholder="Username" required class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                    <input type="password" v-model="newUser.password" placeholder="Password" required class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                    <select v-model="newUser.role" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                        <option value="guest">Guest</option>
+                    </select>
+                    <div v-if="newUser.role === 'guest'">
+                        <input type="number" v-model="newUser.duration" placeholder="Duration (Hours)" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button type="button" @click="showCreateUserModal = false" class="flex-1 py-2 border border-gray-600 rounded text-gray-400">CANCEL</button>
+                        <button type="submit" class="flex-1 gfl-btn py-2 rounded">CREATE</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        // Three.js Background Logic
+        const initThreeBackground = () => {
+            const container = document.getElementById('canvas-container');
+            if(!container) return;
+
+            const scene = new THREE.Scene();
+            // Fog for depth
+            scene.fog = new THREE.FogExp2(0x000000, 0.05);
+
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 15;
+
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Particles - InstancedMesh for performance
+            const particleCount = 2000;
+            // 0.5-1.5mm thickness -> ~0.05-0.15 units scale
+            const geometry = new THREE.BoxGeometry(0.15, 0.15, 0.05); 
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.4,
+                metalness: 0.6,
+            });
+
+            const mesh = new THREE.InstancedMesh(geometry, material, particleCount);
+            scene.add(mesh);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 2); // Soft white
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffb400, 2); // Yellow accent
+            dirLight.position.set(5, 5, 5);
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0xff0000, 1, 20); // Red accent for SF
+            pointLight.position.set(-5, -5, 5);
+            scene.add(pointLight);
+
+            // Formation Data
+            const dummy = new THREE.Object3D();
+            const positionsA = []; // G&K (Shield/V)
+            const positionsB = []; // S.F. (Tower)
+
+            // Generate G&K Shape (V-shape / Chevron layers)
+            for(let i=0; i<particleCount; i++) {
+                const x = (Math.random() - 0.5) * 15;
+                const y = (Math.random() - 0.5) * 15;
+                const z = (Math.random() - 0.5) * 2;
+                
+                // Simple V shape logic: |x| corresponds to y
+                let vy = Math.abs(x) * 1.5 - 5;
+                // Add layers
+                vy += Math.floor(Math.random() * 3) * 2; 
+                
+                positionsA.push({x, y: vy + (Math.random()-0.5), z});
+            }
+
+            // Generate S.F. Shape (Vertical Tower / Monolith)
+            for(let i=0; i<particleCount; i++) {
+                const x = (Math.random() - 0.5) * 4;
+                const y = (Math.random() - 0.5) * 18;
+                const z = (Math.random() - 0.5) * 4;
+                
+                // Geometric cutouts
+                if (Math.random() > 0.8) {
+                    positionsB.push({x: x*3, y: y, z: z*3}); // Scattered debris
+                } else {
+                    positionsB.push({x, y, z});
+                }
+            }
+
+            // Animation Loop
+            let progress = 0;
+            let direction = 1; // 0->1 or 1->0
+            let stateTime = 0;
+            const transitionDuration = 5; // seconds
+            const stableDuration = 25; // seconds
+            const totalCycle = transitionDuration + stableDuration;
+
+            const animate = () => {
+                requestAnimationFrame(animate);
+
+                const time = performance.now() * 0.001;
+                stateTime += 0.016; // approx dt
+
+                // Cycle Logic
+                const cycleTime = stateTime % (totalCycle * 2);
+                let targetProgress = 0;
+
+                if (cycleTime < transitionDuration) {
+                    // Transition A -> B
+                    targetProgress = cycleTime / transitionDuration;
+                } else if (cycleTime < totalCycle) {
+                    // Stable B
+                    targetProgress = 1;
+                } else if (cycleTime < totalCycle + transitionDuration) {
+                    // Transition B -> A
+                    targetProgress = 1 - ((cycleTime - totalCycle) / transitionDuration);
+                } else {
+                    // Stable A
+                    targetProgress = 0;
+                }
+
+                // Smooth ease
+                progress += (targetProgress - progress) * 0.05;
+
+                // Rotate entire system
+                mesh.rotation.y = time * 0.2; // ~12 deg/s
+                mesh.rotation.z = Math.sin(time * 0.1) * 0.1;
+
+                // Update Particles
+                for(let i=0; i<particleCount; i++) {
+                    const posA = positionsA[i];
+                    const posB = positionsB[i];
+
+                    // Lerp
+                    const x = posA.x + (posB.x - posA.x) * progress;
+                    const y = posA.y + (posB.y - posA.y) * progress;
+                    const z = posA.z + (posB.z - posA.z) * progress;
+
+                    // Perlin-ish Noise (Simplex noise is better but math.sin is cheaper/native)
+                    const noise = Math.sin(time + x * 0.5) * Math.cos(time + y * 0.5) * 0.2;
+
+                    dummy.position.set(x, y + noise, z);
+                    
+                    // Rotation based on position
+                    dummy.rotation.set(time * 0.5 + i, time * 0.3 + i, 0);
+                    dummy.scale.setScalar(1);
+                    
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(i, dummy.matrix);
+                    
+                    // Color transition
+                    // G&K (White/Yellow) -> SF (Dark/Red)
+                    const colorA = new THREE.Color(0xffffff);
+                    if (Math.random() > 0.9) colorA.setHex(0xffb400); // Yellow accent
+                    
+                    const colorB = new THREE.Color(0x444444);
+                    if (Math.random() > 0.9) colorB.setHex(0xff3333); // Red accent
+
+                    const finalColor = colorA.clone().lerp(colorB, progress);
+                    mesh.setColorAt(i, finalColor);
+                }
+                
+                mesh.instanceMatrix.needsUpdate = true;
+                if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+
+                renderer.render(scene, camera);
+            };
+
+            animate();
+
+            // Resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        createApp({
+            setup() {
+                const currentTab = ref('dashboard');
+                const connected = ref(false);
+                const stats = ref({
+                    clients: [],
+                    model: null,
+                    system: null,
+                    settings: null
+                });
+                const currentUser = ref(null);
+                const availableModels = ref([]);
+                
+                // User Management
+                const userList = ref([]);
+                const userSearch = ref("");
+                const selectedUsers = ref([]);
+                const allSelected = ref(false);
+                const showCreateUserModal = ref(false);
+                const newUser = ref({ username: '', password: '', role: 'user', duration: 24 });
+
+                // Profile
+                const userProfile = ref({ profile: {} });
+                const passForm = ref({ old: '', new: '' });
+                const userHistory = ref([]);
+
+                // TTS
+                const ttsModels = ref([]);
+                const showCreateTTSModal = ref(false);
+                const newTTS = ref({
+                    name: '', language: 'zh', type: 'female',
+                    speed: 100, pitch: 0, volume: 100,
+                    learning_rate: 0.0002, batch_size: 32,
+                    preview_text: "这是一个TTS语音预览测试。",
+                    voice_id: "default"
+                });
+                const ttsSettings = ref({
+                    default_format: "wav",
+                    max_concurrency: 10,
+                    cache_enabled: true,
+                    device: "cuda"
+                });
+                const editingTTS = ref(null);
+                const showSettingsModal = ref(false);
+                const showEditTTSModal = ref(false);
+                const ttsHealth = ref(null);
+                const voices = ref({});
+
+                let ws = null;
+
+                // --- COMPUTED ---
+                const filteredUsers = computed(() => {
+                    if (!userSearch.value) return userList.value;
+                    const q = userSearch.value.toLowerCase();
+                    return userList.value.filter(u => 
+                        (u.username || '').toLowerCase().includes(q) || 
+                        (u.client_name || '').toLowerCase().includes(q) ||
+                        (u.role || '').toLowerCase().includes(q)
+                    );
+                });
+
+                // --- METHODS ---
+                const checkAuth = async () => {
+                    const res = await fetch('/api/v1/dashboard/check_auth');
+                    const data = await res.json();
+                    if (!data.authenticated) {
+                        window.location.href = '/static/login.html';
+                    }
+                    currentUser.value = {
+                        username: data.username,
+                        role: data.role
+                    };
+                    
+                    if (data.role === 'admin') {
+                        fetchModels();
+                        fetchUsers();
+                    } else {
+                        fetchModels();
+                    }
+                };
+
+                // --- DASHBOARD METHODS ---
+                const fetchModels = async () => {
+                     const res = await fetch('/api/v1/dashboard/models');
+                     if(res.ok) availableModels.value = await res.json();
+                };
+                const loadModel = async (name) => {
+                     if(!confirm(`Load model ${name}?`)) return;
+                     const res = await fetch(`/api/v1/dashboard/models/load?model_name=${encodeURIComponent(name)}`, {method: 'POST'});
+                     const data = await res.json();
+                     alert(data.message);
+                };
+                const reloadModel = async () => {
+                    if(!confirm("Reload Neural Cloud Model?")) return;
+                    await fetch('/api/v1/dashboard/model/reload', {method: 'POST'});
+                };
+                const previewTTS = async () => {
+                    alert("Preview triggered.");
+                };
+                const notifyClient = async (id) => {
+                    const msg = prompt("Message:");
+                    if(msg) await fetch(`/api/v1/dashboard/clients/${id}/notify?message=${encodeURIComponent(msg)}`, {method: 'POST'});
+                };
+                const kickClient = async (id) => {
+                    if(confirm("Kick?")) await fetch(`/api/v1/dashboard/clients/${id}/kick`, {method: 'POST'});
+                };
+
+                // --- USER MANAGEMENT METHODS ---
+                const fetchUsers = async () => {
+                    const res = await fetch('/api/v1/dashboard/admin/users');
+                    if(res.ok) userList.value = await res.json();
+                };
+                const toggleAllUsers = () => {
+                    if (allSelected.value) {
+                        selectedUsers.value = filteredUsers.value.map(u => u.username);
+                    } else {
+                        selectedUsers.value = [];
+                    }
+                };
+                const openCreateUserModal = () => {
+                    newUser.value = { username: '', password: '', role: 'user', duration: 24 };
+                    showCreateUserModal.value = true;
+                };
+                const submitCreateUser = async () => {
+                    const payload = { ...newUser.value };
+                    if (payload.role !== 'guest') delete payload.duration;
+                    else {
+                        // If guest, use guest endpoint or create with expiration
+                        // Let's use guest endpoint if role is guest for simplicity
+                        if (payload.role === 'guest') {
+                            await createGuest(payload.duration);
+                            showCreateUserModal.value = false;
+                            return;
+                        }
+                    }
+                    
+                    const res = await fetch('/api/v1/dashboard/admin/users/create', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        showCreateUserModal.value = false;
+                        fetchUsers();
+                    } else {
+                        alert("Failed to create user");
+                    }
+                };
+                const createGuest = async (hours = 24) => {
+                    if(typeof hours !== 'number') hours = 24;
+                    const res = await fetch('/api/v1/dashboard/admin/guests', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ duration_hours: hours })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        alert(`Guest Created:\nUser: ${data.username}\nPass: ${data.password}\nExpires: ${data.expiration}`);
+                        fetchUsers();
+                    }
+                };
+                const batchAction = async (action) => {
+                    if(!confirm(`${action.toUpperCase()} ${selectedUsers.value.length} users?`)) return;
+                    const res = await fetch('/api/v1/dashboard/admin/users/batch', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ usernames: selectedUsers.value, action })
+                    });
+                    if(res.ok) {
+                        selectedUsers.value = [];
+                        allSelected.value = false;
+                        fetchUsers();
+                    }
+                };
+                const approveUser = async (username) => {
+                    if(confirm("Approve?")) {
+                        await fetch(`/api/v1/dashboard/admin/users/${username}/approve`, {method: 'POST'});
+                        fetchUsers();
+                    }
+                };
+                const rejectUser = async (username) => {
+                    if(confirm("Reject?")) {
+                        await fetch(`/api/v1/dashboard/admin/users/${username}/reject`, {method: 'POST'});
+                        fetchUsers();
+                    }
+                };
+                const editUser = (user) => {
+                    const newRole = prompt("Update Role (admin/user/guest):", user.role);
+                    if(newRole) {
+                        fetch(`/api/v1/dashboard/admin/users/${user.username}`, {
+                            method: 'PUT',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ role: newRole })
+                        }).then(fetchUsers);
+                    }
+                };
+
+                // --- PROFILE METHODS ---
+                const fetchProfile = async () => {
+                    const res = await fetch('/api/v1/dashboard/user/profile');
+                    if(res.ok) userProfile.value = await res.json();
+                    
+                    const histRes = await fetch('/api/v1/dashboard/user/history');
+                    if(histRes.ok) userHistory.value = await histRes.json();
+                    
+                    // Ensure profile object exists
+                    if(!userProfile.value.profile) userProfile.value.profile = {};
+                };
+                
+                // --- TTS METHODS ---
+                const fetchTTSModels = async () => {
+                    const res = await fetch('/api/v1/tts/models');
+                    if(res.ok) ttsModels.value = await res.json();
+                };
+                const fetchTTSHealth = async () => {
+                    const res = await fetch('/api/v1/tts/health');
+                    if(res.ok) ttsHealth.value = await res.json();
+                };
+                const fetchVoices = async () => {
+                    const res = await fetch('/api/v1/tts/voices');
+                    if(res.ok) voices.value = await res.json();
+                };
+                const openCreateTTSModal = () => {
+                    newTTS.value = {
+                        name: '', language: 'zh', type: 'female',
+                        speed: 100, pitch: 0, volume: 100,
+                        learning_rate: 0.0002, batch_size: 32,
+                        preview_text: "这是一个TTS语音预览测试。",
+                        voice_id: "default"
+                    };
+                    showCreateTTSModal.value = true;
+                };
+                const submitTTSModel = async () => {
+                    const res = await fetch('/api/v1/tts/models', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(newTTS.value)
+                    });
+                    if (res.ok) {
+                        showCreateTTSModal.value = false;
+                        fetchTTSModels();
+                    } else {
+                        const err = await res.json();
+                        alert("Error: " + (err.detail || "Failed to create model"));
+                    }
+                };
+                const previewNewTTS = async () => {
+                    const res = await fetch('/api/v1/tts/synthesize', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            text: newTTS.value.preview_text,
+                            language: newTTS.value.language,
+                            speed: newTTS.value.speed,
+                            volume: newTTS.value.volume,
+                            voice_id: newTTS.value.voice_id
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        new Audio(data.audio_url).play();
+                    } else {
+                        alert("Preview Failed");
+                    }
+                };
+                const previewTTSModel = async (model) => {
+                    const res = await fetch('/api/v1/tts/preview', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            text: "这是已保存模型的语音预览。",
+                            language: model.language,
+                            speed: model.speed,
+                            pitch: model.pitch,
+                            volume: model.volume,
+                            type: model.type
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        new Audio(data.audio_url).play();
+                    }
+                };
+                const toggleTTSModel = async (model) => {
+                    const newStatus = model.status === 'active' ? 'inactive' : 'active';
+                    const res = await fetch(`/api/v1/tts/models/${model.id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    if(res.ok) fetchTTSModels();
+                };
+                const deleteTTSModel = async (model) => {
+                    if(confirm(`Delete model ${model.name}?`)) {
+                        const res = await fetch(`/api/v1/tts/models/${model.id}`, { method: 'DELETE' });
+                        if(res.ok) fetchTTSModels();
+                    }
+                };
+                const editTTSModel = (model) => {
+                    editingTTS.value = { ...model };
+                    showEditTTSModal.value = true;
+                };
+                const updateTTSModel = async () => {
+                     const res = await fetch(`/api/v1/tts/models/${editingTTS.value.id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(editingTTS.value)
+                    });
+                    if(res.ok) {
+                        showEditTTSModal.value = false;
+                        fetchTTSModels();
+                    } else {
+                        alert("Failed to update model");
+                    }
+                };
+                const openSettingsModal = async () => {
+                    // Fetch settings from server if endpoint exists, else use defaults
+                    try {
+                        const res = await fetch('/api/v1/tts/settings');
+                        if(res.ok) ttsSettings.value = await res.json();
+                    } catch(e) {}
+                    showSettingsModal.value = true;
+                };
+                const saveTTSSettings = async () => {
+                    try {
+                        const res = await fetch('/api/v1/tts/settings', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(ttsSettings.value)
+                        });
+                        if(res.ok) {
+                            showSettingsModal.value = false;
+                            alert("Settings Saved");
+                        } else {
+                            alert("Failed to save settings");
+                        }
+                    } catch(e) {
+                        alert("Error saving settings");
+                    }
+                };
+
+                const updateProfile = async () => {
+                    const res = await fetch('/api/v1/dashboard/user/profile', {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(userProfile.value.profile)
+                    });
+                    if(res.ok) alert("Profile Updated");
+                };
+                const changePassword = async () => {
+                    const res = await fetch('/api/v1/dashboard/user/password', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ old_password: passForm.value.old, new_password: passForm.value.new })
+                    });
+                    if(res.ok) {
+                        alert("Password Changed");
+                        passForm.value = { old: '', new: '' };
+                    } else {
+                        const d = await res.json();
+                        alert("Error: " + d.detail);
+                    }
+                };
+                const toggle2FA = async () => {
+                    const newVal = !userProfile.value.is_2fa_enabled;
+                    const res = await fetch(`/api/v1/dashboard/user/2fa/toggle?enable=${newVal}`, {method: 'POST'});
+                    if(res.ok) {
+                        userProfile.value.is_2fa_enabled = newVal;
+                    }
+                };
+                const exportData = async () => {
+                    const res = await fetch('/api/v1/dashboard/user/export');
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `eliza_export_${userProfile.value.username}.json`;
+                    a.click();
+                };
+
+                // --- COMMON ---
+                const formatTime = (isoStr) => {
+                    if (!isoStr) return '-';
+                    return new Date(isoStr).toLocaleString();
+                };
+                const logout = async () => {
+                    await fetch('/api/v1/dashboard/logout', {method: 'POST'});
+                    window.location.href = '/static/login.html';
+                };
+                const connect = () => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/api/v1/dashboard/ws`;
+                    ws = new WebSocket(wsUrl);
+                    ws.onopen = () => { connected.value = true; ws.send(JSON.stringify({type: "get_data"})); };
+                    ws.onmessage = (e) => { try { const d = JSON.parse(e.data); if(d.type === 'update') stats.value = d; } catch(err){} };
+                    ws.onclose = () => { connected.value = false; setTimeout(connect, 3000); };
+                };
+
+                onMounted(() => {
+                    checkAuth().then(() => connect());
+                    initThreeBackground();
+                    const recomputeLayout = () => {
+                        const root = document.documentElement;
+                        const appEl = document.getElementById('app');
+                        const w = Math.max(320, appEl ? appEl.clientWidth : window.innerWidth);
+                        const vw = Math.max(320, window.innerWidth);
+                        const gap = Math.max(6, Math.min(16, Math.round(vw * 0.01)));
+                        root.style.setProperty('--btn-gap', `${gap}px`);
+                        const fontScale = Math.min(1.4, Math.max(0.9, vw / 1200));
+                        root.style.setProperty('--btn-font-min', `12px`);
+                        root.style.setProperty('--btn-font-max', `16px`);
+                        root.style.setProperty('--btn-font-scale', `${fontScale}vw`);
+                        root.style.setProperty('--btn-pad-y-min', `6px`);
+                        root.style.setProperty('--btn-pad-y-max', `12px`);
+                        root.style.setProperty('--btn-pad-y-scale', `${Math.max(0.6, Math.min(1.2, vw / 2000))}vw`);
+                        root.style.setProperty('--btn-pad-x-min', `10px`);
+                        root.style.setProperty('--btn-pad-x-max', `18px`);
+                        root.style.setProperty('--btn-pad-x-scale', `${Math.max(0.8, Math.min(1.6, vw / 1500))}vw`);
+                        const minWScale = Math.max(8, Math.min(16, Math.round(w * 0.03)));
+                        root.style.setProperty('--btn-min-w-min', `84px`);
+                        root.style.setProperty('--btn-min-w-max', `200px`);
+                        root.style.setProperty('--btn-min-w-scale', `${minWScale}px`);
+                        root.style.setProperty('--btn-max-w', `${Math.round(w * 0.35)}px`);
+                    };
+                    recomputeLayout();
+                    window.addEventListener('resize', recomputeLayout);
+                });
+
+                return {
+                    currentTab, connected, stats, currentUser, availableModels,
+                    // Dashboard
+                    loadModel, reloadModel, previewTTS, notifyClient, kickClient,
+                    // User Mgmt
+                    userList, userSearch, selectedUsers, allSelected, filteredUsers, showCreateUserModal, newUser,
+                    fetchUsers, toggleAllUsers, openCreateUserModal, submitCreateUser, createGuest, batchAction, approveUser, rejectUser, editUser,
+                    // TTS
+                    ttsModels, showCreateTTSModal, newTTS, ttsHealth, voices,
+                    fetchTTSModels, fetchTTSHealth, fetchVoices, openCreateTTSModal, submitTTSModel, previewNewTTS, previewTTSModel, toggleTTSModel, deleteTTSModel, editTTSModel, openSettingsModal,
+                    updateTTSModel, saveTTSSettings, ttsSettings, editingTTS, showSettingsModal, showEditTTSModal,
+                    // Profile
+                    userProfile, passForm, userHistory,
+                    fetchProfile, updateProfile, changePassword, toggle2FA, exportData,
+                    // Common
+                    formatTime, logout
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

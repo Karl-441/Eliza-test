@@ -1,0 +1,32 @@
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+server/server_error.log
+server/tts_error.log
+
+# Temp files
+server/static/temp/
+server/data/temp_*
+
+# Large models and weights
+server/llm/*
+server/Models/TTS/pretrained_models/*
+server/Models/TTS/tools/**/uvr5_weights/*
+server/Models/TTS/tools/denoise-model/*
+server/Models/TTS/**/*.pt
+server/Models/TTS/**/*.onnx
