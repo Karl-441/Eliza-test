@@ -12,6 +12,7 @@ class TTSModelConfig(BaseModel):
     name: str
     type: str  # female, male, neutral
     language: str # zh, en, ja
+    path: Optional[str] = None
     speed: int = 100
     pitch: int = 0
     volume: int = 100
@@ -63,7 +64,7 @@ class TTSManager:
             self.create_model(d)
 
     def save_models(self):
-        data = [m.model_dump() for m in self.models.values()]
+        data = [m.dict() for m in self.models.values()]
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
 
@@ -92,7 +93,7 @@ class TTSManager:
             return None
         
         model = self.models[model_id]
-        model_data = model.model_dump()
+        model_data = model.dict()
         
         # Update fields
         for k, v in updates.items():
@@ -118,5 +119,39 @@ class TTSManager:
 
     def list_models(self) -> List[TTSModelConfig]:
         return list(self.models.values())
+
+    def scan_models(self, directory: str) -> List[TTSModelConfig]:
+        """Scans a directory for model files and adds them."""
+        added_models = []
+        if not os.path.exists(directory):
+            return []
+
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if file.endswith((".pth", ".ckpt", ".pt")):
+                    # Simple heuristic: use filename as model name
+                    name = os.path.splitext(file)[0]
+                    # Check if already exists by name (naive check)
+                    if any(m.name == name for m in self.models.values()):
+                        continue
+                    
+                    # Guess type/lang from filename
+                    m_type = "neutral"
+                    if "female" in name.lower(): m_type = "female"
+                    elif "male" in name.lower(): m_type = "male"
+                    
+                    lang = "zh"
+                    if "en" in name.lower(): lang = "en"
+                    elif "ja" in name.lower(): lang = "ja"
+
+                    new_model = self.create_model({
+                        "name": name,
+                        "type": m_type,
+                        "language": lang,
+                        "path": os.path.join(root, file) # We might need to add 'path' to TTSModelConfig if not present
+                    })
+                    added_models.append(new_model)
+        
+        return added_models
 
 tts_manager = TTSManager()

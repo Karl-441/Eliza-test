@@ -118,6 +118,11 @@ class VoiceControlWidget(QWidget):
         self.chk_vad = QCheckBox("Enable Voice Activity Detection (VAD)")
         self.chk_vad.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
         vad_layout.addWidget(self.chk_vad)
+
+        # Continuous Mode Toggle
+        self.chk_continuous = QCheckBox("Continuous Mode (Wake Word Simulation)")
+        self.chk_continuous.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
+        vad_layout.addWidget(self.chk_continuous)
         
         # Threshold Slider
         thresh_layout = QHBoxLayout()

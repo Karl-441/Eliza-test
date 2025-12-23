@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from server.core.config import settings
 from server.core.llm import llm_engine
 from server.core.memory import memory_manager
-from server.core.search import search_engine
+from server.core.search_engine import ai_search
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -29,13 +29,21 @@ async def chat(request: ChatRequest):
     search_summary = ""
     search_query = ""
 
-    # Check for manual search trigger or automatic keyword match
-    if request.force_search or (settings.enable_search and search_engine.should_search(user_input)):
-        search_query = user_input
-        search_data = search_engine.search(user_input)
-        search_context = search_data.get("summary", "")
-        search_summary = search_context
+    # Layer 1: Intent Recognition
+    intent = ai_search.analyze_intent(user_input)
+    
+    # Check trigger: Force Search OR Intent Detected AND Search Enabled
+    should_search = request.force_search or (settings.enable_search and intent["needs_search"])
+
+    if should_search:
+        # Layer 2: Networking
+        search_query = intent["keywords"] if not request.force_search else user_input
+        search_data = ai_search.execute_search(search_query)
+        
+        # Layer 3: Result Processing
+        search_context = ai_search.process_results(search_data)
         search_results = search_data.get("raw", [])
+        search_summary = search_data.get("summary", "") # Keep legacy summary format if needed
         search_used = True
     
     # Add to memory
@@ -49,12 +57,13 @@ async def chat(request: ChatRequest):
     
     combined_context = ""
     if search_context:
-        combined_context += f"\n\nRelevant Information from Search:\n{search_context}\n"
+        # Fusion Feedback
+        combined_context += f"\n\n[System: The following is real-time data retrieved from the network. Use it to answer the user's query accurately.]\n{search_context}\n"
     if memory_context:
         combined_context += f"\n\n{memory_context}\n"
         
     if combined_context:
-        system_prompt += combined_context + "\nUse this information to answer the user."
+        system_prompt += combined_context + "\nUse the above information to provide a comprehensive answer."
 
     # Stream response handling would be ideal, but standard REST returns full text
     # For now, we collect the stream

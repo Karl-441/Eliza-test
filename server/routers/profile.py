@@ -1,10 +1,22 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from server.core.memory import memory_manager
+from server.routers.dashboard import get_current_user
 
 router = APIRouter()
 
+from server.core.persona import persona_manager
+
+@router.get("/persona")
+async def get_persona(user: dict = Depends(get_current_user)):
+    return persona_manager.get_persona()
+
+@router.post("/persona/analyze")
+async def analyze_persona(user: dict = Depends(get_current_user)):
+    persona_manager.analyze_memory()
+    return {"status": "success", "persona": persona_manager.get_persona()}
+
 @router.get("/")
-async def get_profile():
+async def get_user_profile(user: dict = Depends(get_current_user)):
     return memory_manager.user_profile
 
 @router.post("/")

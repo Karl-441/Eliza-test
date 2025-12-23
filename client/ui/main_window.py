@@ -8,7 +8,7 @@ import tempfile
 
 from ..api_client import APIClient
 from ..core.theme_manager import ThemeManager
-from ..audio_recorder import AudioRecorder
+from ..core.voice_system import VoiceSystem
 from .voice_widget import VoiceControlWidget
 from .settings_dialog import SettingsDialog
 
@@ -62,11 +62,17 @@ class MainWindow(QMainWindow):
         self.tts_volume = float(self.settings.value("tts_volume", 1.0))
         self.tts_voice = self.settings.value("tts_voice", "default")
         self.custom_avatar_path = self.settings.value("avatar_path", "")
+        self.continuous_mode = False
         
         self.player = QMediaPlayer()
         self.player.stateChanged.connect(self.on_media_state_changed)
         
-        self.recorder = AudioRecorder()
+        # Voice System
+        ws_base = self.client.base_url.replace("http", "ws").replace("https", "wss")
+        self.voice_system = VoiceSystem(api_url=f"{ws_base}/audio/stream")
+        self.voice_system.text_received.connect(self.on_voice_text)
+        self.voice_system.wake_detected.connect(self.on_wake_word)
+        self.voice_system.status_changed.connect(lambda s: self.add_system_message(f"VOICE: {s}"))
         
         # Workers
         self.worker = None
@@ -733,6 +739,19 @@ class MainWindow(QMainWindow):
         else:
             self.add_system_message(f"Unknown command: {cmd}")
 
+    def on_voice_text(self, text, is_final):
+        if is_final:
+            self.input_box.setPlainText(text)
+            self.send_message()
+
+    def on_wake_word(self):
+        self.add_system_message("Wake Word Detected! Listening for command...")
+        self.voice_system.set_mode("active")
+        self.btn_voice.setText("ACTIVE")
+        self.btn_voice.set_accent_color(THEME.get_color('accent_warn'))
+        self.player.setMedia(QMediaContent(QUrl.fromLocalFile(os.path.abspath("assets/sounds/wake.wav")))) # Optional
+        self.player.play()
+
     def toggle_voice(self):
         if not hasattr(self, 'voice_widget_dialog'):
             self.voice_widget_dialog = QDialog(self)
@@ -744,45 +763,35 @@ class MainWindow(QMainWindow):
             
             # Connect signals
             self.voice_ctrl.chk_vad.stateChanged.connect(self.update_vad_settings)
+            self.voice_ctrl.chk_continuous.stateChanged.connect(self.toggle_continuous_mode)
             self.voice_ctrl.slider_thresh.valueChanged.connect(self.update_vad_settings)
-            self.recorder.level_changed.connect(self.voice_ctrl.visualizer.update_level)
-            self.recorder.silence_detected.connect(self.on_silence_detected)
+            self.voice_system.level_changed.connect(self.voice_ctrl.visualizer.update_level)
             
         self.voice_widget_dialog.show()
         
-        # Start/Stop recording
-        if not self.recorder.recording:
-            self.recorder.start_recording()
+        # Start/Stop
+        if not self.voice_system.running:
+            self.voice_system.start()
             self.btn_voice.setText("LISTENING")
             self.btn_voice.set_accent_color(THEME.get_color('accent_warn'))
         else:
-            self.recorder.stop_recording()
+            self.voice_system.stop()
             self.btn_voice.setText("VOICE")
             self.btn_voice.set_accent_color(None)
+
+    def toggle_continuous_mode(self, state):
+        self.continuous_mode = (state == Qt.Checked)
+        mode = "continuous" if self.continuous_mode else "wake_word"
+        self.voice_system.set_mode(mode)
+        self.add_system_message(f"Voice Mode: {mode.upper()}")
 
     def update_vad_settings(self):
         if hasattr(self, 'voice_ctrl'):
-            enabled = self.voice_ctrl.chk_vad.isChecked()
-            threshold = self.voice_ctrl.slider_thresh.value() / 100.0
-            self.recorder.set_vad_parameters(enabled, threshold, 1.5)
+            # self.voice_system.vad_threshold = self.voice_ctrl.slider_thresh.value() / 100.0
+            pass # TODO: expose setting in VoiceSystem
 
     def on_silence_detected(self):
-        self.add_system_message("Silence detected. Processing audio...")
-        path = self.recorder.stop_recording()
-        if path:
-            self.btn_voice.setText("VOICE")
-            self.btn_voice.set_accent_color(None)
-            self.transcribe_worker = Worker(self.client.transcribe_audio, path)
-            self.transcribe_worker.finished.connect(self.on_transcription_received)
-            self.transcribe_worker.start()
-
-    def on_transcription_received(self, result):
-        text = result.get("data", "")
-        if text and not text.startswith("Error"):
-            self.input_box.setPlainText(text)
-            self.send_message()
-        else:
-            self.add_system_message(f"Transcription failed: {text}")
+        pass # Managed by VoiceSystem internally via server commit
 
     def open_settings(self):
         dialog = SettingsDialog(self, self.client)

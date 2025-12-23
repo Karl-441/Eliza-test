@@ -4,10 +4,11 @@ import sys
 from tqdm import tqdm
 
 # Configuration
-MODELS_DIR = "models"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # server/
+MODELS_DIR = os.path.join(BASE_DIR, "Models")
 LLM_DIR = os.path.join(MODELS_DIR, "llm")
 ASR_DIR = os.path.join(MODELS_DIR, "asr")
-TTS_DIR = os.path.join(MODELS_DIR, "tts")
+TTS_DIR = os.path.join(MODELS_DIR, "TTS")
 
 # Recommended Model: Qwen2.5-1.5B-Instruct-GGUF (Q4_K_M) - ~1.0 GB, very fast, good instruction following
 LLM_URL = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"

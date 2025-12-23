@@ -1,11 +1,69 @@
-from fastapi import APIRouter, HTTPException, Body, UploadFile, File
+from fastapi import APIRouter, HTTPException, Body, UploadFile, File, WebSocket, WebSocketDisconnect
 from server.core.audio import audio_manager
 from fastapi.responses import FileResponse
 import uuid
 import os
+import asyncio
 from pathlib import Path
 
 router = APIRouter()
+
+@router.websocket("/stream")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    
+    # Session state
+    buffer = bytearray()
+    
+    try:
+        while True:
+            # Receive message
+            # Format: {"type": "start"|"end"|"data", "data": <bytes/base64>?}
+            # Or simpler: Binary frames are audio, Text frames are control.
+            
+            message = await websocket.receive()
+            
+            if "bytes" in message:
+                # Audio chunk
+                buffer.extend(message["bytes"])
+                
+            elif "text" in message:
+                data = message["text"]
+                if data == "COMMIT":
+                    # Process current buffer
+                    if len(buffer) > 0:
+                        # Save to temp
+                        temp_filename = f"stream_{uuid.uuid4()}.wav"
+                        base_dir = Path(__file__).resolve().parents[1]
+                        temp_path = str(base_dir / "data" / temp_filename)
+                        
+                        # Assuming raw PCM 16-bit 16kHz mono, we need to wrap in WAV container
+                        # or let audio_manager handle raw. 
+                        # Let's save as WAV using scipy or wave
+                        import wave
+                        with wave.open(temp_path, "wb") as wf:
+                            wf.setnchannels(1)
+                            wf.setsampwidth(2) # 16-bit
+                            wf.setframerate(16000)
+                            wf.writeframes(buffer)
+                        
+                        # Transcribe
+                        text = audio_manager.transcribe(temp_path)
+                        
+                        # Clean up
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
+                            
+                        await websocket.send_json({"type": "transcription", "text": text})
+                        buffer = bytearray() # Clear buffer
+                        
+                elif data == "CLEAR":
+                    buffer = bytearray()
+                    
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"WS Error: {e}")
 
 @router.get("/voices")
 async def get_available_voices():

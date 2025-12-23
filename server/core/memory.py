@@ -4,14 +4,15 @@ from pathlib import Path
 import base64
 import time
 import math
-import heapq
 from typing import List, Dict, Any, Optional
 from collections import deque
-from .config import settings
-from .prompts import prompt_manager
+from abc import ABC, abstractmethod
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
+
+from .config import settings
+from .prompts import prompt_manager
 
 class MemoryNode:
     """
@@ -65,42 +66,30 @@ class MemoryNode:
         node.access_count = data.get("access_count", 1)
         return node
 
-class MemoryManager:
-    def __init__(self):
-        base_dir = Path(__file__).resolve().parent.parent
-        data_dir = base_dir / "data"
-        # 1. Memory Layering
-        # Short-term (Working) Memory: High fidelity, limited capacity
-        self.stm_capacity = 10
-        self.short_term_memory: deque[MemoryNode] = deque(maxlen=self.stm_capacity)
-        
-        # Long-term Memory: Unlimited capacity, decay-based retrieval
-        self.long_term_memory: List[MemoryNode] = []
-        self.ltm_file = str(data_dir / "long_term_memory.json")
-        
-        # Legacy support (for API compatibility)
-        self.history = deque(maxlen=20) 
-        
-        self.is_paused = False
-        self.user_profile: Dict[str, Any] = {}
-        
-        # Encryption Key
-        self.key_file = str(data_dir / "secret.key")
+class MemoryStorage(ABC):
+    @abstractmethod
+    def load(self) -> List[MemoryNode]:
+        pass
+
+    @abstractmethod
+    def save(self, nodes: List[MemoryNode]):
+        pass
+
+class JSONEncryptedStorage(MemoryStorage):
+    def __init__(self, file_path: str, key_path: str):
+        self.file_path = file_path
+        self.key_path = key_path
         self.key = self._load_or_generate_key()
-        
-        self.load_profile()
-        self.load_ltm()
-        self.apply_preferences()
 
     def _load_or_generate_key(self):
-        if os.path.exists(self.key_file):
-            with open(self.key_file, "rb") as f:
+        if os.path.exists(self.key_path):
+            with open(self.key_path, "rb") as f:
                 return f.read()
         else:
             # Generate 32 bytes for AES-256
             key = os.urandom(32)
-            os.makedirs(os.path.dirname(self.key_file), exist_ok=True)
-            with open(self.key_file, "wb") as f:
+            os.makedirs(os.path.dirname(self.key_path), exist_ok=True)
+            with open(self.key_path, "wb") as f:
                 f.write(key)
             return key
 
@@ -125,29 +114,75 @@ class MemoryManager:
             return unpadder.update(padded_data) + unpadder.finalize()
         except Exception as e:
             print(f"Decryption error: {e}")
-            return b"{}"
+            return b"[]"
 
-    def load_ltm(self):
-        if os.path.exists(self.ltm_file):
+    def load(self) -> List[MemoryNode]:
+        if os.path.exists(self.file_path):
             try:
-                with open(self.ltm_file, "rb") as f:
+                with open(self.file_path, "rb") as f:
                     encrypted = f.read()
                 decrypted = self._decrypt(encrypted)
                 data = json.loads(decrypted.decode('utf-8'))
-                self.long_term_memory = [MemoryNode.from_dict(item) for item in data]
+                return [MemoryNode.from_dict(item) for item in data]
             except Exception as e:
                 print(f"Error loading LTM: {e}")
-                self.long_term_memory = []
+                return []
+        return []
 
-    def save_ltm(self):
+    def save(self, nodes: List[MemoryNode]):
         try:
-            data = [node.to_dict() for node in self.long_term_memory]
+            data = [node.to_dict() for node in nodes]
             json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
             encrypted = self._encrypt(json_bytes)
-            with open(self.ltm_file, "wb") as f:
+            with open(self.file_path, "wb") as f:
                 f.write(encrypted)
         except Exception as e:
             print(f"Error saving LTM: {e}")
+
+class MemoryManager:
+    def __init__(self):
+        base_dir = Path(__file__).resolve().parent.parent
+        data_dir = base_dir / "data"
+        
+        # Storage Backend
+        self.ltm_file = str(data_dir / "long_term_memory.json")
+        self.key_file = str(data_dir / "secret.key")
+        self.storage = JSONEncryptedStorage(self.ltm_file, self.key_file)
+
+        # 1. Memory Layering
+        # Short-term (Working) Memory: High fidelity, limited capacity
+        self.stm_capacity = 10
+        self.short_term_memory: deque[MemoryNode] = deque(maxlen=self.stm_capacity)
+        
+        # Long-term Memory: Unlimited capacity, decay-based retrieval
+        self.long_term_memory: List[MemoryNode] = self.storage.load()
+        
+        # Legacy support (for API compatibility)
+        self.history = deque(maxlen=20) 
+        
+        self.is_paused = False
+        self.user_profile: Dict[str, Any] = {}
+        
+        # Reuse storage key logic for profile for now, or move profile to storage too
+        # For minimal refactor, keeping profile logic similar but using storage key helper if needed
+        # Actually, let's keep profile logic separate for now as requested "Independent memory database"
+        
+        self.load_profile()
+        self.apply_preferences()
+
+    # Profile logic kept inside MemoryManager for now as it's separate from LTM
+    # But uses the same key... duplicating logic slightly or should expose key from storage
+    # Let's use the storage's key for profile too if possible, but for safety copy logic or make helper
+    # I'll keep the profile logic here but simplified.
+
+    def _encrypt(self, data: bytes) -> bytes:
+        return self.storage._encrypt(data)
+
+    def _decrypt(self, data: bytes) -> bytes:
+        return self.storage._decrypt(data)
+
+    def save_ltm(self):
+        self.storage.save(self.long_term_memory)
 
     def add_message(self, role: str, content: str):
         if self.is_paused:
@@ -262,11 +297,6 @@ class MemoryManager:
     def clear_history(self):
         self.history.clear()
         self.short_term_memory.clear()
-        # LTM is persistent, but maybe we want to clear it too? 
-        # For now, let's clear STM only as per legacy behavior, 
-        # or clear LTM if requested.
-        # self.long_term_memory.clear() 
-        # self.save_ltm()
 
     def load_profile(self):
         if os.path.exists(settings.user_profile_path):

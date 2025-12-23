@@ -128,7 +128,50 @@ async def reject_user(username: str, user: dict = Depends(get_current_admin)):
 
 @router.get("/models")
 async def list_models(user: dict = Depends(get_current_user)):
-    return model_manager.list_models()
+    local = model_manager.list_models()
+    remote = model_manager.get_remote_models()
+    
+    # Merge status
+    local_names = {m["name"] for m in local}
+    for r in remote:
+        if r["name"] in local_names:
+            r["downloaded"] = True
+        else:
+            r["downloaded"] = False
+            
+    return {"local": local, "remote": remote}
+
+@router.post("/models/download")
+async def download_model(request: Request, user: dict = Depends(get_current_admin)):
+    data = await request.json()
+    url = data.get("url")
+    filename = data.get("filename")
+    
+    if not url or not filename:
+        raise HTTPException(status_code=400, detail="URL and filename required")
+        
+    task_id = model_manager.start_download(url, filename)
+    audit_logger.log("MODEL_DOWNLOAD", f"Started download for {filename}", user["user"])
+    return {"status": "success", "task_id": task_id}
+
+@router.get("/models/downloads")
+async def get_downloads(user: dict = Depends(get_current_user)):
+    return model_manager.get_all_downloads()
+
+@router.get("/models/huggingface")
+async def search_huggingface(q: str, limit: int = 10, user: dict = Depends(get_current_user)):
+    # Proxy to HF API
+    import requests
+    try:
+        # Search for GGUF models specifically as that's what we support
+        api_url = f"https://huggingface.co/api/models?search={q}&filter=gguf&limit={limit}&full=true"
+        resp = requests.get(api_url, timeout=10)
+        if resp.ok:
+            return resp.json()
+        return []
+    except Exception as e:
+        logger.error(f"HF Search failed: {e}")
+        return []
 
 @router.post("/models/load")
 async def load_specific_model(model_name: str, user: dict = Depends(get_current_admin)):
@@ -146,6 +189,24 @@ async def reload_model(user: dict = Depends(get_current_admin)):
         return {"status": "success", "message": "Model reload initiated"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+from server.core.config import settings
+
+@router.get("/settings")
+async def get_settings(user: dict = Depends(get_current_admin)):
+    return settings.dict()
+
+@router.post("/settings")
+async def update_settings(new_settings: dict, user: dict = Depends(get_current_admin)):
+    audit_logger.log("SETTINGS_UPDATE", "Updated system settings", user["user"])
+    
+    # Update settings object
+    for k, v in new_settings.items():
+        if hasattr(settings, k):
+            setattr(settings, k, v)
+    
+    settings.save()
+    return {"status": "success", "settings": settings.dict()}
 
 # --- TTS Preview ---
 

@@ -82,7 +82,7 @@ async def update_preferences(prefs: TTSPreferences, user: dict = Depends(get_cur
         # For now, just lenient validation or check if model exists
         pass
     
-    if not user_manager.update_tts_preferences(user["user"], prefs.model_dump()):
+    if not user_manager.update_tts_preferences(user["user"], prefs.dict()):
         raise HTTPException(status_code=500, detail="Failed to update preferences")
     
     audit_logger.log("TTS_PREF_UPDATE", "User updated TTS preferences", user["user"])
@@ -94,13 +94,13 @@ async def create_model(data: CreateTTSRequest, user: dict = Depends(get_current_
     if len(data.name) > 32:
         raise HTTPException(status_code=400, detail="Name too long")
     
-    model = tts_manager.create_model(data.model_dump())
+    model = tts_manager.create_model(data.dict())
     audit_logger.log("TTS_MODEL_CREATE", f"Created model {model.name}", user["user"])
     return model
 
 @router.put("/models/{model_id}", response_model=TTSModelConfig)
 async def update_model(model_id: str, data: UpdateTTSRequest, user: dict = Depends(get_current_admin)):
-    updates = {k: v for k, v in data.model_dump().items() if v is not None}
+    updates = {k: v for k, v in data.dict().items() if v is not None}
     model = tts_manager.update_model(model_id, updates)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -171,6 +171,12 @@ async def tts_health(user: dict = Depends(get_current_user)):
 @router.get("/voices")
 async def tts_voices(user: dict = Depends(get_current_user)):
     return audio_manager.get_voices()
+
+@router.post("/scan")
+async def scan_models(directory: str = Body(..., embed=True), user: dict = Depends(get_current_admin)):
+    added = tts_manager.scan_models(directory)
+    audit_logger.log("TTS_SCAN", f"Scanned {len(added)} new models from {directory}", user["user"])
+    return {"status": "success", "added": len(added), "models": added}
 
 @router.post("/synthesize")
 async def synthesize(data: SynthesizeRequest, user: dict = Depends(get_current_user)):

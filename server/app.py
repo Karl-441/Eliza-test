@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 import uvicorn
 import os
 
@@ -9,7 +9,7 @@ from server.core.config import settings
 from server.middleware.auth import LoggingMiddleware, verify_api_key
 from server.middleware.rate_limit import RateLimitMiddleware
 from server.middleware.tracker import ClientTrackingMiddleware
-from server.routers import system, chat, audio, profile, config, dashboard as dashboard_router, tts_config, theme, search as search_router
+from server.routers import system, chat, audio, profile, config, dashboard as dashboard_router, tts_config, theme, search as search_router, vision_api, files
 
 # Create FastAPI App with Versioning
 app = FastAPI(
@@ -53,6 +53,20 @@ async def dashboard():
         return {"error": "Dashboard file not found"}
     return FileResponse(dashboard_path)
 
+@app.get("/login", tags=["System"])
+async def login_page():
+    login_path = STATIC_DIR / "login.html"
+    if not login_path.exists():
+        return {"error": "Login file not found"}
+    return FileResponse(login_path)
+
+@app.get("/register", tags=["System"])
+async def register_page():
+    reg_path = STATIC_DIR / "register.html"
+    if not reg_path.exists():
+        return {"error": "Register file not found"}
+    return FileResponse(reg_path)
+
 from fastapi import Depends
 
 API_PREFIX = "/api/v1"
@@ -66,10 +80,12 @@ app.include_router(tts_config.router, prefix=API_PREFIX + "/tts", tags=["TTS Con
 app.include_router(theme.router, prefix=API_PREFIX + "/theme", tags=["Theme"])
 app.include_router(dashboard_router.router, prefix=API_PREFIX + "/dashboard", tags=["Dashboard"])
 app.include_router(search_router.router, prefix=API_PREFIX, tags=["Search"])
+app.include_router(vision_api.router, prefix=API_PREFIX, tags=["Vision"])
+app.include_router(files.router, prefix=API_PREFIX, tags=["Files"])
 
 @app.get("/", tags=["Root"])
 def root():
-    return {"status": "online", "version": "1.0.0", "docs": "/docs"}
+    return RedirectResponse(url="/dashboard")
 
 if __name__ == "__main__":
     uvicorn.run(app, host=settings.host, port=settings.port)

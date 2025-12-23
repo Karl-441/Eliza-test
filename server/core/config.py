@@ -6,10 +6,11 @@ from pydantic import BaseModel
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 CONFIG_DIR = BASE_DIR / "config"
-LLM_DIR = BASE_DIR / "llm"
+LLM_DIR = BASE_DIR / "Models" / "llm"
 
 class Settings(BaseModel):
     # LLM Settings
+    models_root_dir: str = str(BASE_DIR / "Models" / "llm")
     model_path: str = str(LLM_DIR / "qwen2.5-1.5b-instruct-q4_k_m.gguf")
     n_ctx: int = 4096
     n_threads: int = 4
@@ -37,6 +38,10 @@ class Settings(BaseModel):
             "name": "Default (Eliza)"
         }
     }
+
+    # Vision Settings
+    enable_vision: bool = False
+    vision_model_path: str = str(BASE_DIR / "Models" / "vision" / "yolov8n.pt")
     
     # Security Settings
     admin_user: str = "admin"
@@ -51,7 +56,7 @@ class Settings(BaseModel):
         target = Path(path) if path else (CONFIG_DIR / "settings.json")
         target.parent.mkdir(parents=True, exist_ok=True)
         with open(target, "w", encoding="utf-8") as f:
-            f.write(self.model_dump_json(indent=4))
+            f.write(self.json(indent=4))
 
     @classmethod
     def load(cls, path=None):
