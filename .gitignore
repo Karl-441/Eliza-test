@@ -21,7 +21,7 @@ server/tts_error.log
 auto_git.log
 
 # Auto scripts
-auto_push.bat
+
 
 # Temp files
 server/static/temp/
