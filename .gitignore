@@ -34,3 +34,4 @@ server/Models/TTS/tools/**/uvr5_weights/*
 server/Models/TTS/tools/denoise-model/*
 server/Models/TTS/**/*.pt
 server/Models/TTS/**/*.onnx
+server/Models/llm/*.gguf

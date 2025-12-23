@@ -1,114 +1,103 @@
 # Eliza AI Assistant
 
-A powerful, local AI assistant with Girls' Frontline aesthetic.
+A powerful, local AI assistant with a tactical interface, inspired by *Girls' Frontline*. Designed for privacy and modularity, Eliza runs entirely on your local machine (or distributed across a local network).
 
-## Features
-- **Local LLM**: Run quantized models (GGUF) locally on CPU.
-- **Memory**: Remembers conversation history and user preferences.
-- **Search**: Integrated web search (DuckDuckGo).
-- **Voice**: ASR (Speech-to-Text) and TTS (Text-to-Speech) support.
-- **UI**: Tactical interface built with PyQt5.
-- **Modular**: Client-Server architecture (deploy server on NAS, client on PC).
+## ✨ Key Features
 
-## System Requirements
+### 🧠 Core Intelligence
+- **Local LLM**: Runs quantized GGUF models (e.g., Llama 3, Qwen) locally using `llama-cpp-python`.
+- **Memory System**: Context-aware conversation history with short-term memory management.
+- **Smart Search**: Analyzes user intent and performs DuckDuckGo web searches when necessary to provide up-to-date information.
 
-- **OS**: Windows 10/11 (64-bit)
-- **CPU**: AVX2 support recommended for LLM
-- **RAM**: 8GB minimum (16GB recommended)
-- **Disk**: 10GB free space
+### 🗣️ Voice & Audio
+- **TTS (Text-to-Speech)**: Integrated **GPT-SoVITS** for high-quality, emotive voice synthesis.
+- **ASR (Speech-to-Text)**: Uses **Faster-Whisper** for fast and accurate voice input.
 
-## Installation
+### 👁️ Vision
+- **Computer Vision**: Integrated **YOLO** for real-time object detection and scene analysis.
+- **Image Analysis**: Capable of analyzing uploaded images or screen content.
 
-### Server Setup (Python)
-1. **Prerequisites**:
-   - Python 3.10+ installed.
+### 🖥️ Architecture & UI
+- **Client-Server**:
+  - **Server**: FastAPI-based backend handling LLM inference, TTS generation, and search.
+  - **Client**: PyQt5-based desktop application with a futuristic, tactical UI.
+- **Dashboard**: Web-based dashboard for server monitoring and configuration.
 
-2. **Installation**:
-   ```bash
-   cd server
-   pip install -r requirements.txt
-   ```
+---
 
-3. **Start Server**:
-   Double-click `run_server.bat` in the root directory.
+## 💻 System Requirements
 
-### Client Setup (PyQt5)
-1. **Prerequisites**:
-   - Python 3.10+
-   - Visual C++ Redistributable (Windows)
+- **OS**: Windows 10/11 (64-bit) recommended.
+- **Python**: Version 3.10 or higher.
+- **GPU**: NVIDIA GPU with CUDA support recommended for optimal performance (LLM & TTS).
+  - *Can run on CPU, but inference will be slower.*
+- **RAM**: 16GB recommended (8GB minimum).
+- **Disk**: ~10GB+ free space (depending on models downloaded).
 
-2. **Installation**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-3. **Build & Run**:
-   ```bash
-   # Run directly
-   run_client.bat
-   
-   # Build Executable (Windows Only)
-   pyinstaller client.spec
-   ```
+## 🚀 Installation
 
-4. **Deployment**:
-   - Copy the `dist/ElizaClient.exe` and `client/assets/` folder to target machine.
+### 1. Prerequisites
+Ensure you have Python 3.10+ installed and added to your PATH.
 
-
-## Usage
-
-1. **Start Server**:
-   Double-click `run_server.bat`.
-   Wait for "Model loaded" message.
-
-2. **Start Client**:
-   Double-click `run_client.bat`.
-   The tactical interface will launch.
-
-## Configuration
-- Edit `config/settings.json` (created after first run) or `server/core/config.py` to change parameters like `n_ctx`, `temperature`, etc.
-
-## Project Structure
-- `client/`: PyQt5 Desktop Application.
-- `server/`: FastAPI Backend.
-- `models/`: Store your GGUF models here.
-- `data/`: Stores chat history and user profile.
-
-## Server Dashboard Guide
-
-The server comes with a built-in web dashboard for monitoring and management.
-
-### 1. Start Dashboard
-Run the following command in the `server` directory:
-```bash
-# Using npm
-npm run dashboard
-
-# Using yarn
-yarn dashboard
+### 2. Automatic Setup
+Run the installation script to create a virtual environment and install dependencies:
+```batch
+install.bat
 ```
-*Note: This command starts the main server process.*
 
-### 2. Access
-Open your browser and visit:
+### 3. Model Setup
+Eliza requires external models to function.
+1.  **LLM**: Download a GGUF model (e.g., [Qwen1.5-7B-Chat-GGUF](https://huggingface.co/Qwen/Qwen1.5-7B-Chat-GGUF)) and place it in `models/llm/`.
+2.  **Update Config**: Edit `server/core/config.py` or the generated `config/settings.json` to match your model filename.
+
+---
+
+## 🎮 Usage
+
+### 1. Start the Server
+Launch the backend services:
+```batch
+run_server.bat
 ```
-http://localhost:8000/dashboard
+- This starts the Main API (FastAPI) and the TTS Module.
+- Wait for the "Application startup complete" message.
+
+### 2. Start the Client
+Launch the desktop interface:
+```batch
+run_client.bat
 ```
-*(Replace `8000` with your configured port if different)*
+- The tactical interface will appear.
+- Connects to `localhost` by default.
 
-### 3. Requirements
-- **Node.js**: Version 14.x or higher (for running npm scripts).
-- **Python**: 3.10+ (Server runtime).
-- **Dependencies**: Ensure `npm install` and `pip install -r requirements.txt` are completed.
+### 3. Web Dashboard
+Monitor the server status and configure settings via the browser:
+- URL: `http://localhost:8000/dashboard`
 
-### 4. Features
-- **System Status**: Monitor server uptime and resource usage.
-- **Log Viewer**: View real-time server logs and activity.
-- **Configuration**: View current server settings.
-- **API Status**: Check the health of API endpoints.
+---
 
-### 5. FAQ
-- **Q: Dashboard shows 404?**
-  - A: Ensure the server is running and you are visiting `/dashboard`.
-- **Q: npm command not found?**
-  - A: Install Node.js or run `python app.py` directly.
+## 📂 Project Structure
+
+```
+Eliza-test/
+├── client/             # PyQt5 Desktop Application
+│   ├── assets/         # Images and UI resources
+│   └── ui/             # UI Components
+├── server/             # FastAPI Backend
+│   ├── core/           # LLM, Memory, Search logic
+│   ├── routers/        # API Endpoints (Chat, Audio, Vision)
+│   └── Models/
+│       └── TTS/        # GPT-SoVITS Integration
+├── data/               # User profiles and persistent data
+├── models/             # Directory for GGUF and ASR models
+└── run_*.bat           # Launcher scripts
+```
+
+## 🛠️ Configuration
+
+- **Client Settings**: Accessible via the "Settings" button in the client UI.
+- **Server Settings**:
+  - `server/core/config.py`: Default configurations.
+  - `config/settings.json`: Runtime overrides.

@@ -16,12 +16,9 @@ class PersonaModel(BaseModel):
 class PersonaManager:
     def __init__(self):
         self.current_persona = PersonaModel()
-        # In a real app, this would be persisted per user. 
-        # For now, we attach it to the MemoryManager's user profile or store it separately.
         self.load_persona()
 
     def load_persona(self):
-        # Try to load from user profile in memory manager
         if "persona" in memory_manager.user_profile:
             try:
                 self.current_persona = PersonaModel(**memory_manager.user_profile["persona"])
