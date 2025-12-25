@@ -1,13 +1,14 @@
 from PyQt5.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QLineEdit, QPushButton, QCheckBox, QComboBox, QTabWidget, 
                              QFormLayout, QScrollArea, QFrame, QSpinBox, QDoubleSpinBox,
-                             QMessageBox, QListWidget, QListWidgetItem, QStackedWidget, QFileDialog)
+                             QMessageBox, QListWidget, QListWidgetItem, QStackedWidget, QFileDialog, QStackedLayout)
 from PyQt5.QtCore import Qt, QSettings, pyqtSignal
 from PyQt5.QtGui import QColor
 from ..framework.theme import THEME
-from ..components import TacticalButton, TacticalFrame
+from ..components import TacticalButton, TacticalFrame, ParticleBackground
 from ..api_client import APIClient
 import json
+import os
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None, client=None):
@@ -26,7 +27,24 @@ class SettingsDialog(QDialog):
         self.load_settings()
         
     def setup_ui(self):
-        self.layout = QVBoxLayout(self)
+        # Use Stacked Layout to support Particle Background
+        self.main_stack = QStackedLayout(self)
+        self.main_stack.setStackingMode(QStackedLayout.StackAll)
+        
+        # Background
+        assets_dir = os.path.join(os.path.dirname(__file__), "../assets")
+        griffin_path = os.path.join(assets_dir, "griffin_logo.png")
+        sf_path = os.path.join(assets_dir, "sf_logo.jpg")
+        
+        self.bg_particles = ParticleBackground(parent=self, griffin_logo=griffin_path, sf_logo=sf_path)
+        self.main_stack.addWidget(self.bg_particles)
+        
+        # Content Container
+        self.content_container = QWidget()
+        self.content_container.setAttribute(Qt.WA_TranslucentBackground)
+        self.main_stack.addWidget(self.content_container)
+        
+        self.layout = QVBoxLayout(self.content_container)
         self.layout.setContentsMargins(0, 0, 0, 0)
         
         # Header
@@ -79,6 +97,7 @@ class SettingsDialog(QDialog):
         
         # Pages
         self.pages = QStackedWidget()
+        self.pages.setAttribute(Qt.WA_TranslucentBackground)
         content_layout.addWidget(self.pages)
         
         self.layout.addWidget(content)
@@ -131,11 +150,14 @@ class SettingsDialog(QDialog):
 
     def create_form_page(self):
         page = QWidget()
+        page.setAttribute(Qt.WA_TranslucentBackground)
         scroll = QScrollArea(page)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("background: transparent; border: none;")
         
         content = QWidget()
+        content.setAttribute(Qt.WA_TranslucentBackground)
         layout = QVBoxLayout(content)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)

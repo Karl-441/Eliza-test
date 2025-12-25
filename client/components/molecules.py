@@ -348,6 +348,10 @@ class TacticalButtonBar(QWidget):
         self.btn_search = self.create_btn("NET: OFF", checkable=True)
         self.layout.addWidget(self.btn_search)
         
+        self.btn_multi_agent = self.create_btn("MULTI-AGENT")
+        self.btn_multi_agent.set_accent_color(THEME.get_color('info'))
+        self.layout.addWidget(self.btn_multi_agent)
+        
         self.btn_memory = self.create_btn("MEMORY")
         self.btn_memory.set_accent_color(THEME.get_color('warning'))
         self.layout.addWidget(self.btn_memory)

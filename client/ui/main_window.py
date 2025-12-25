@@ -11,6 +11,7 @@ from ..core.theme_manager import ThemeManager
 from ..core.voice_system import VoiceSystem
 from .voice_widget import VoiceControlWidget
 from .settings_dialog import SettingsDialog
+from .multi_agent_ui import MultiAgentWidget
 
 # New Architecture Imports
 from ..framework.theme import THEME
@@ -95,6 +96,11 @@ class MainWindow(QMainWindow):
         self.content_widget.setAttribute(Qt.WA_TranslucentBackground)
         self.stack_layout.addWidget(self.content_widget)
         self.content_widget.raise_()
+        
+        self.multi_agent_widget = MultiAgentWidget(parent=self.central_widget, client=self.client)
+        self.multi_agent_widget.hide()
+        self.multi_agent_widget.close_requested.connect(self.hide_multi_agent_mode)
+        self.stack_layout.addWidget(self.multi_agent_widget)
         
         self.main_layout = QHBoxLayout(self.content_widget)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -426,6 +432,7 @@ class MainWindow(QMainWindow):
         self.btn_settings = self.func_bar.btn_settings
         self.btn_tts = self.func_bar.btn_tts
         self.btn_search = self.func_bar.btn_search
+        self.btn_multi_agent = self.func_bar.btn_multi_agent
         self.btn_memory = self.func_bar.btn_memory
         self.btn_voice = self.func_bar.btn_voice
         self.btn_clear = self.func_bar.btn_clear
@@ -434,6 +441,7 @@ class MainWindow(QMainWindow):
         self.btn_settings.clicked.connect(self.open_settings)
         self.btn_tts.toggled.connect(self.toggle_tts)
         self.btn_search.toggled.connect(self.toggle_net_search)
+        self.btn_multi_agent.clicked.connect(self.show_multi_agent_mode)
         self.btn_memory.clicked.connect(self.manage_memory)
         self.btn_voice.clicked.connect(self.toggle_voice)
         self.btn_clear.clicked.connect(self.clear_memory_confirm)
@@ -797,6 +805,20 @@ class MainWindow(QMainWindow):
         dialog = SettingsDialog(self, self.client)
         if dialog.exec_():
             self.apply_settings()
+
+    def show_multi_agent_mode(self):
+        self.content_widget.hide()
+        self.multi_agent_widget.show()
+        if hasattr(self, 'btn_scroll_bottom'):
+            self.btn_scroll_bottom.hide()
+        self.add_system_message("Multi-Agent Collaboration Mode Initiated.")
+
+    def hide_multi_agent_mode(self):
+        self.multi_agent_widget.hide()
+        self.content_widget.show()
+        if hasattr(self, 'btn_scroll_bottom'):
+            self.update_scroll_button()
+        self.add_system_message("Returning to Standard Command Interface.")
 
     def apply_settings(self):
         res_text = self.settings.value("resolution", "1280x720 (HD)")

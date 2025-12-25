@@ -1,6 +1,10 @@
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer
 from PyQt5.QtGui import QColor, QFont
 
+# THEME VERSION: 1.1.0
+# Updated: Integrated ParticleBackground support for SettingsDialog
+# Ensure visual consistency across all windows
+
 class ThemeSignals(QObject):
     theme_changed = pyqtSignal()
 
