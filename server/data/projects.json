@@ -1,0 +1,36 @@
+[
+  {
+    "id": "39fb4e56-7287-4274-8d8c-772222969084",
+    "name": "????",
+    "owner_key": "eliza-client-key-12345",
+    "created_at": "2026-01-08T00:16:53.163477",
+    "agents": [
+      {
+        "role_name": "????",
+        "model_name": "server-qwen2.5-7b",
+        "description": "????",
+        "created_at": "2026-01-08T00:18:47.433213"
+      },
+      {
+        "role_name": "?????",
+        "model_name": "local-llama-3-8b",
+        "description": "????",
+        "created_at": "2026-01-08T00:18:57.620874"
+      }
+    ]
+  },
+  {
+    "id": "393a008d-ee24-4d4d-a55d-7a7c917339f4",
+    "name": "新项目",
+    "owner_key": "eliza-client-key-12345",
+    "created_at": "2026-01-08T00:26:05.017296",
+    "agents": []
+  },
+  {
+    "id": "c51d75ce-5b03-4ad2-aafe-aaebcc3f583d",
+    "name": "test project",
+    "owner_key": "eliza-client-key-12345",
+    "created_at": "2026-01-08T00:26:28.636882",
+    "agents": []
+  }
+]

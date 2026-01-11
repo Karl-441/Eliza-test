@@ -351,6 +351,13 @@ class MainWindow(QMainWindow):
         header_title = QLabel("COMMAND CENTER")
         header_title.setStyleSheet(f"color: {THEME.get_color('accent')}; font-size: {THEME.fonts['size_h2']}px; font-weight: bold; letter-spacing: 2px;")
         
+        self.btn_chat_multi = QPushButton("CHAT-MULTI")
+        self.btn_chat_multi.setFixedHeight(32)
+        self.btn_chat_multi.setCursor(Qt.PointingHandCursor)
+        self.btn_chat_multi.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: 1px solid {THEME.get_color('accent_dim')}; padding: 0 12px; border-radius: 16px;")
+        self.btn_chat_multi.setToolTip("切换聊天/多智能体模式")
+        self.btn_chat_multi.clicked.connect(self.toggle_chat_multi_mode)
+        
         btn_theme = QPushButton("☀/☾")
         btn_theme.setFixedSize(32, 32)
         btn_theme.setCursor(Qt.PointingHandCursor)
@@ -364,6 +371,7 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(lbl_logo)
         top_layout.addWidget(header_title)
         top_layout.addStretch()
+        top_layout.addWidget(self.btn_chat_multi)
         top_layout.addWidget(btn_theme)
         
         layout.addWidget(top_bar)
@@ -819,6 +827,16 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'btn_scroll_bottom'):
             self.update_scroll_button()
         self.add_system_message("Returning to Standard Command Interface.")
+
+    def toggle_chat_multi_mode(self):
+        if self.multi_agent_widget.isVisible():
+            self.hide_multi_agent_mode()
+            self.btn_chat_multi.setText("CHAT-MULTI")
+            self.btn_chat_multi.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: 1px solid {THEME.get_color('accent_dim')}; padding: 0 12px; border-radius: 16px;")
+        else:
+            self.show_multi_agent_mode()
+            self.btn_chat_multi.setText("MULTI-ACTIVE")
+            self.btn_chat_multi.setStyleSheet(f"background: {THEME.hex_to_rgba(THEME.get_color('accent'), 0.15)}; color: {THEME.get_color('accent')}; border: 1px solid {THEME.get_color('accent')}; padding: 0 12px; border-radius: 16px;")
 
     def apply_settings(self):
         res_text = self.settings.value("resolution", "1280x720 (HD)")

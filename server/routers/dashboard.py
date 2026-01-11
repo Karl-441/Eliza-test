@@ -89,7 +89,6 @@ async def register(data: RegisterRequest):
     if not success:
         audit_logger.log("REGISTER_FAILED", f"Failed registration for {data.username}: {message}", "unknown")
         raise HTTPException(status_code=400, detail=message)
-    
     audit_logger.log("REGISTER_PENDING", f"User {data.username} registered pending approval", "unknown")
     return {"status": "success", "message": message}
 
@@ -129,16 +128,13 @@ async def reject_user(username: str, user: dict = Depends(get_current_admin)):
 @router.get("/models")
 async def list_models(user: dict = Depends(get_current_user)):
     local = model_manager.list_models()
-    remote = model_manager.get_remote_models()
-    
-    # Merge status
-    local_names = {m["name"] for m in local}
-    for r in remote:
-        if r["name"] in local_names:
-            r["downloaded"] = True
-        else:
-            r["downloaded"] = False
-            
+    remote = []
+    if user.get("role") == "admin":
+        remote = model_manager.get_remote_models()
+        # Merge status
+        local_names = {m["name"] for m in local}
+        for r in remote:
+            r["downloaded"] = r["name"] in local_names
     return {"local": local, "remote": remote}
 
 @router.post("/models/download")
@@ -191,6 +187,7 @@ async def reload_model(user: dict = Depends(get_current_admin)):
         return {"status": "error", "message": str(e)}
 
 from server.core.config import settings
+from pydantic import BaseModel
 
 @router.get("/settings")
 async def get_settings(user: dict = Depends(get_current_admin)):
@@ -214,6 +211,22 @@ async def update_settings(new_settings: dict, user: dict = Depends(get_current_a
 async def tts_preview(data: TTSPreviewRequest, user: dict = Depends(get_current_user)):
     # Mock TTS preview generation
     return {"status": "success", "message": "Preview generated (mock)", "audio_url": ""} 
+
+class ModelRequest(BaseModel):
+    name: str
+    link: str | None = None
+    reason: str
+
+@router.post("/models/request")
+async def request_model(req: ModelRequest, user: dict = Depends(get_current_user)):
+    title = "MODEL_REQUEST"
+    msg = f"name={req.name}; link={req.link or ''}; reason={req.reason}; from={user['user']}"
+    admin = user_manager.users.get("admin")
+    if admin:
+        admin.notifications.append({"title": title, "message": msg, "date": str(datetime.datetime.now())})
+        user_manager.save_users()
+    audit_logger.log("MODEL_REQUEST", msg, user["user"])
+    return {"status": "success"}
 
 
 # --- WebSocket ---

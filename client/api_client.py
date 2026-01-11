@@ -149,6 +149,73 @@ class APIClient:
     def save_prompt(self, prompt_data):
         return False
 
+    def create_project(self, name: str):
+        try:
+            payload = {"name": name}
+            response = requests.post(f"{self.base_url}/api/v1/projects/", json=payload, headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def list_projects(self):
+        try:
+            response = requests.get(f"{self.base_url}/api/v1/projects/", headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def list_models(self, q: str = ""):
+        try:
+            params = {"q": q} if q else None
+            response = requests.get(f"{self.base_url}/api/v1/models/", params=params, headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def create_agent(self, project_id: str, role_name: str, model_name: str, description: str = ""):
+        try:
+            payload = {"role_name": role_name, "model_name": model_name, "description": description}
+            response = requests.post(f"{self.base_url}/api/v1/projects/{project_id}/agents", json=payload, headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def list_agents(self, project_id: str):
+        try:
+            response = requests.get(f"{self.base_url}/api/v1/projects/{project_id}/agents", headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_project_log(self, project_id: str):
+        try:
+            response = requests.get(f"{self.base_url}/api/v1/projects/{project_id}/log", headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def orchestrate(self, project_id: str, message: str):
+        try:
+            payload = {"project_id": project_id, "message": message}
+            response = requests.post(f"{self.base_url}/api/v1/orchestrate/", json=payload, headers=self._get_headers(), timeout=60)
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
     def delete_prompt(self, template_id):
         return False
 

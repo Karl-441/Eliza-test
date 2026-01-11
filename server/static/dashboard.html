@@ -388,7 +388,7 @@
         <!-- Navigation Tabs -->
         <div class="flex mb-6 border-b border-gray-800">
             <div class="nav-item" :class="{active: currentTab === 'dashboard'}" @click="currentTab = 'dashboard'">DASHBOARD</div>
-            <div class="nav-item" :class="{active: currentTab === 'models'}" @click="fetchModelData(); currentTab = 'models'" v-if="currentUser?.role === 'admin'">NEURAL STORE</div>
+            <div class="nav-item" :class="{active: currentTab === 'models'}" @click="fetchModelData(); currentTab = 'models'">NEURAL STORE</div>
             <div class="nav-item" :class="{active: currentTab === 'users'}" @click="currentTab = 'users'" v-if="currentUser?.role === 'admin'">USER MANAGEMENT</div>
             <div class="nav-item" :class="{active: currentTab === 'tts'}" @click="fetchTTSModels(); fetchTTSHealth(); fetchVoices(); currentTab = 'tts'" v-if="currentUser?.role === 'admin'">TTS CONFIGURATION</div>
             <div class="nav-item" :class="{active: currentTab === 'profile'}" @click="fetchProfile(); fetchPersona(); currentTab = 'profile'">MY PROFILE</div>
@@ -480,12 +480,12 @@
                     <span class="mr-2">◈</span> CONFIGURATION
                 </h2>
                 <div v-if="stats.settings" class="space-y-3 text-sm">
-                    <div class="bg-gray-800 p-2 rounded">
+                    <div class="bg-gray-800 p-2 rounded" v-if="stats.settings && stats.settings.tts_settings">
                         <div class="text-gray-400 text-xs uppercase mb-1">Audio System (TTS)</div>
                         <div class="flex justify-between items-center mb-2">
                             <span>Enabled</span>
-                            <span :class="stats.settings.tts_settings.enabled ? 'text-green-400' : 'text-gray-500'">
-                                {{ stats.settings.tts_settings.enabled ? 'YES' : 'NO' }}
+                            <span :class="(stats.settings.tts_settings && stats.settings.tts_settings.enabled) ? 'text-green-400' : 'text-gray-500'">
+                                {{ (stats.settings.tts_settings && stats.settings.tts_settings.enabled) ? 'YES' : 'NO' }}
                             </span>
                         </div>
                         <div class="flex gap-2">
@@ -494,10 +494,14 @@
                             </button>
                         </div>
                     </div>
+                    <div class="bg-gray-800 p-2 rounded" v-else>
+                        <div class="text-gray-400 text-xs uppercase mb-1">Audio System (TTS)</div>
+                        <div class="text-xs text-gray-500">TTS settings unavailable</div>
+                    </div>
                     <div class="bg-gray-800 p-2 rounded">
                         <div class="text-gray-400 text-xs uppercase mb-1">Timezone</div>
-                        <div class="font-mono">{{ stats.settings.time_settings.timezone }}</div>
-                        <div class="text-gray-500 text-xs mt-1">{{ stats.settings.time_settings.system_time }}</div>
+                        <div class="font-mono">{{ (stats.settings && stats.settings.time_settings && stats.settings.time_settings.timezone) || '-' }}</div>
+                        <div class="text-gray-500 text-xs mt-1">{{ (stats.settings && stats.settings.time_settings && stats.settings.time_settings.system_time) || '-' }}</div>
                     </div>
                 </div>
             </div>
@@ -540,6 +544,41 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Multi-Agent Streams -->
+            <div class="gfl-card p-4 rounded col-span-3">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-yellow-500 flex items-center">
+                        <span class="mr-2">◈</span> MULTI-AGENT OBSERVER
+                    </h2>
+                    <div class="flex gap-2">
+                        <input v-model="ma.search" placeholder="Search outputs..." class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white w-64">
+                        <select v-model="ma.activeProject" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white">
+                            <option value="">All Projects</option>
+                            <option v-for="p in ma.projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+                        </select>
+                        <input v-model="ma.newName" placeholder="Project name" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white w-48">
+                        <button @click="createProjectQuick" class="gfl-btn px-3 py-1 text-sm rounded">+ NEW PROJECT</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div v-for="item in filteredMA" :key="item.timestamp + item.model" class="bg-gray-900 rounded border border-gray-700 p-4 hover:border-yellow-500 transition">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-full bg-yellow-500/20 border border-yellow-500 flex items-center justify-center text-yellow-500 font-bold">◎</div>
+                                <div>
+                                    <div class="text-white text-sm font-bold">{{ item.model }}</div>
+                                    <div class="text-xs text-gray-500">{{ formatTime(item.timestamp) }}</div>
+                                </div>
+                            </div>
+                            <span class="text-xs text-gray-400 uppercase">{{ item.role }}</span>
+                        </div>
+                        <div class="text-gray-300 text-sm line-clamp-5">{{ item.content }}</div>
+                        <div class="mt-3 text-xs text-gray-500">Project: {{ item.project_id }}</div>
+                    </div>
+                    <div v-if="filteredMA.length === 0" class="col-span-4 text-center text-gray-500 py-6">No outputs yet.</div>
                 </div>
             </div>
         </div>
@@ -598,8 +637,8 @@
                                     <span v-else class="text-gray-500 text-xs uppercase">AVAILABLE</span>
                                 </td>
                                 <td class="p-3">
-                                    <button v-if="!model.downloaded" @click="downloadModel(model.url, model.name)" class="gfl-btn px-2 py-1 text-xs rounded">DOWNLOAD</button>
-                                    <button v-else @click="loadModel(model.name)" class="gfl-btn px-2 py-1 text-xs rounded border-green-500 text-green-500">LOAD</button>
+                                    <button v-if="currentUser?.role === 'admin' && !model.downloaded" @click="downloadModel(model.url, model.name)" class="gfl-btn px-2 py-1 text-xs rounded">DOWNLOAD</button>
+                                    <button v-if="currentUser?.role === 'admin' && model.downloaded" @click="loadModel(model.name)" class="gfl-btn px-2 py-1 text-xs rounded border-green-500 text-green-500">LOAD</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -607,8 +646,8 @@
                 </div>
             </div>
 
-            <!-- HF Search -->
-            <div class="gfl-card p-4 rounded col-span-1 md:col-span-2">
+            <!-- HF Search (Admin Only) -->
+            <div class="gfl-card p-4 rounded col-span-1 md:col-span-2" v-if="currentUser?.role === 'admin'">
                  <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-yellow-500 flex items-center">
                         <span class="mr-2">◈</span> HUGGINGFACE SEARCH (GGUF)
@@ -678,6 +717,24 @@
                     <div class="text-xs text-gray-500 mt-1">
                         Note: For HuggingFace Repos, enter Repo ID and Filename. Downloads will use configured Models Root.
                     </div>
+                </div>
+            </div>
+
+            <!-- Model Request (User) -->
+            <div class="gfl-card p-4 rounded col-span-1 md:col-span-2" v-else>
+                <h2 class="text-xl font-bold mb-4 text-yellow-500 flex items-center">
+                    <span class="mr-2">◈</span> REQUEST NEW MODEL
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input type="text" v-model="requestForm.name" placeholder="Model Name" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white">
+                    <input type="text" v-model="requestForm.link" placeholder="Repo Link (optional)" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white">
+                    <input type="text" v-model="requestForm.reason" placeholder="Reason/Purpose" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white">
+                </div>
+                <div class="mt-2">
+                    <button @click="submitModelRequest" class="gfl-btn px-3 py-1 text-sm rounded">SUBMIT REQUEST</button>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                    Format: [MODEL_REQUEST] name=&lt;model&gt;; link=&lt;url&gt;; reason=&lt;text&gt;
                 </div>
             </div>
         </div>
@@ -1193,18 +1250,12 @@
                     const data = await res.json();
                     if (!data.authenticated) {
                         window.location.href = '/login';
+                        return;
                     }
-                    currentUser.value = {
-                        username: data.username,
-                        role: data.role
-                    };
-                    
-                    if (data.role === 'admin') {
-                        fetchModels();
-                        fetchUsers();
-                    } else {
-                        fetchModels();
-                    }
+                    currentUser.value = { username: data.username, role: data.role };
+                    fetchModels();
+                    if (currentUser.value.role === 'admin') fetchUsers();
+                    fetchProjects();
                 };
 
                 // --- DASHBOARD METHODS ---
@@ -1215,11 +1266,13 @@
                              const data = await res.json();
                              // Ensure arrays are initialized if null
                              availableModels.value = data.local || [];
-                             remoteModels.value = data.remote || [];
+                             remoteModels.value = (currentUser.value?.role === 'admin' ? (data.remote || []) : []);
                          }
-                         const dlRes = await fetch('/api/v1/dashboard/models/downloads');
-                         if (dlRes.ok) {
-                             downloads.value = await dlRes.json();
+                         if (currentUser.value?.role === 'admin') {
+                             const dlRes = await fetch('/api/v1/dashboard/models/downloads');
+                             if (dlRes.ok) {
+                                 downloads.value = await dlRes.json();
+                             }
                          }
                      } catch(e) { console.error("Fetch models error", e); }
                 };
@@ -1264,10 +1317,20 @@
                         // No, backend needs a filename to download specific file from repo.
                         // So we prepopulate the manual download fields.
                         
-                        manualDownload.url = input; // Use Repo ID as "URL"
-                        manualDownload.filename = `${input.split('/').pop()}.gguf`; // Guess
-                        alert("Please confirm the Repo ID and Filename in the Manual Download section below, then click Start.");
+                        manualDownload.url = input;
+                        manualDownload.filename = `${input.split('/').pop()}.gguf`;
                     }
+                };
+                const requestForm = Vue.reactive({ name: '', link: '', reason: '' });
+                const submitModelRequest = async () => {
+                    if (!requestForm.name || !requestForm.reason) { alert('Name and reason required'); return; }
+                    const res = await fetch('/api/v1/dashboard/models/request', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(requestForm)
+                    });
+                    if (res.ok) { alert('Request submitted'); requestForm.name=''; requestForm.link=''; requestForm.reason=''; }
+                    else { alert('Failed to submit'); }
                 };
 
                 // Poll for downloads
@@ -1664,6 +1727,39 @@
                     ws.onclose = () => { connected.value = false; setTimeout(connect, 3000); };
                 };
 
+                const ma = Vue.reactive({ projects: [], activeProject: '', search: '', outputs: [] });
+                const fetchProjects = async () => {
+                    if (currentUser.value?.role === 'guest') { ma.projects = []; ma.outputs = []; return; }
+                    const res = await fetch('/api/v1/projects/');
+                    if(res.ok) {
+                        const data = await res.json();
+                        ma.projects = data.projects || [];
+                        const logs = [];
+                        for (const p of ma.projects) {
+                            const r = await fetch(`/api/v1/projects/${p.id}/log`);
+                            if (r.ok) {
+                                const ld = await r.json();
+                                (ld.log || []).forEach(x => logs.push(x));
+                            }
+                        }
+                        ma.outputs = logs.sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
+                    }
+                };
+                const createProjectQuick = async () => {
+                    const name = (ma.newName || '').trim();
+                    if(!name) return;
+                    const res = await fetch('/api/v1/projects/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name}) });
+                    if(res.ok) fetchProjects();
+                };
+                const filteredMA = Vue.computed(() => {
+                    const term = (ma.search || '').toLowerCase();
+                    return ma.outputs.filter(x => {
+                        const okProj = !ma.activeProject || x.project_id === ma.activeProject;
+                        const txt = JSON.stringify(x).toLowerCase();
+                        return okProj && (!term || txt.includes(term));
+                    });
+                });
+
                 Vue.onMounted(() => {
                     checkAuth().then(() => connect());
                     initThreeBackground();
@@ -1698,6 +1794,7 @@
                     currentTab, connected, stats, currentUser, availableModels,
                     // Dashboard
                     loadModel, reloadModel, previewTTS, notifyClient, kickClient,
+                    ma, filteredMA, createProjectQuick, fetchProjects,
                     // Models
                     remoteModels, downloads, hfSearchQuery, hfResults, manualDownload,
                     fetchModelData, downloadModel, searchHF, promptDownload,
