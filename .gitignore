@@ -35,3 +35,8 @@ server/Models/TTS/tools/denoise-model/*
 server/Models/TTS/**/*.pt
 server/Models/TTS/**/*.onnx
 server/Models/llm/*.gguf
+server/Models/llm/blobs/*
+server/Models/llm/*
+.gitignore
+.gitignore
+.gitignore
