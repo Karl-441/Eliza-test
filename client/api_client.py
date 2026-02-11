@@ -149,15 +149,24 @@ class APIClient:
     def save_prompt(self, prompt_data):
         return False
 
-    def create_project(self, name: str):
+    def create_project(self, name: str, template: str = ""):
         try:
-            payload = {"name": name}
+            payload = {"name": name, "template": template}
             response = requests.post(f"{self.base_url}/api/v1/projects/", json=payload, headers=self._get_headers())
             if response.status_code == 200:
                 return response.json()
             return {"error": response.text}
         except Exception as e:
             return {"error": str(e)}
+
+    def list_output_files(self):
+        try:
+            response = requests.get(f"{self.base_url}/api/v1/files/output", headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"files": []}
+        except Exception as e:
+            return {"error": str(e), "files": []}
 
     def list_projects(self):
         try:
@@ -198,6 +207,32 @@ class APIClient:
             return {"error": str(e)}
 
     def get_project_log(self, project_id: str):
+        try:
+            response = requests.get(f"{self.base_url}/api/v1/projects/{project_id}/log", headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def orchestrate(self, project_id: str, message: str):
+        try:
+            payload = {"message": message}
+            response = requests.post(f"{self.base_url}/api/v1/projects/{project_id}/orchestrate", json=payload, headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def init_team(self, project_id: str):
+        try:
+            response = requests.post(f"{self.base_url}/api/v1/projects/{project_id}/init_team", json={}, headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"error": response.text}
+        except Exception as e:
+            return {"error": str(e)}
         try:
             response = requests.get(f"{self.base_url}/api/v1/projects/{project_id}/log", headers=self._get_headers())
             if response.status_code == 200:

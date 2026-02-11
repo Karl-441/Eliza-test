@@ -623,6 +623,12 @@ class MainWindow(QMainWindow):
 
     def update_scroll_button(self):
         if not hasattr(self, 'btn_scroll_bottom'): return
+        
+        # Do not show scroll button if Multi-Agent Mode is active
+        if hasattr(self, 'multi_agent_widget') and self.multi_agent_widget.isVisible():
+            self.btn_scroll_bottom.hide()
+            return
+
         if self.unread_count > 0:
             self.btn_scroll_bottom.setText(f"⇩ LATEST ({self.unread_count})")
             self.btn_scroll_bottom.setEnabled(True)

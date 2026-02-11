@@ -9,7 +9,7 @@ import secrets
 import hashlib
 from server.core.users import user_manager
 from server.core.model_manager import model_manager
-from server.core.monitor import monitor, client_manager, audit_logger
+from server.core.monitor import monitor, client_manager, audit_logger, monitor_hub
 from server.core.llm import llm_engine
 from server.middleware.auth import verify_api_key
 
@@ -33,10 +33,32 @@ class TTSPreviewRequest(BaseModel):
 sessions = {}
 
 def get_current_user(request: Request):
+    # 1. Check Cookie Session
     session_id = request.cookies.get("admin_session")
-    if not session_id or session_id not in sessions:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return sessions[session_id]
+    if session_id and session_id in sessions:
+        return sessions[session_id]
+    
+    # 2. Check API Key Header
+    api_key = request.headers.get("X-API-Key")
+    if api_key:
+        # Check hardcoded default key
+        if api_key == "eliza-client-key-12345":
+            return {
+                "user": "default_client",
+                "role": "user",
+                "created_at": str(datetime.datetime.now())
+            }
+
+        # Simple search for user by key (inefficient for large DB, but fine here)
+        for u in user_manager.users.values():
+            if u.client_secret == api_key:
+                return {
+                    "user": u.username,
+                    "role": u.role,
+                    "created_at": str(datetime.datetime.now())
+                }
+    
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 def get_current_admin(request: Request):
     user = get_current_user(request)
@@ -231,78 +253,48 @@ async def request_model(req: ModelRequest, user: dict = Depends(get_current_user
 
 # --- WebSocket ---
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            try:
-                await connection.send_text(message)
-            except:
-                pass
-
-manager = ConnectionManager()
-
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+@router.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    # Determine API Key. 
+    # Since frontend currently doesn't send authentication, we use a default key.
+    api_key = "eliza-client-key-12345" 
     
-    # Register as a monitored client (using IP)
+    await websocket.accept()
+    
+    # Register with monitor_hub for orchestration updates
+    monitor_hub.register(api_key, websocket)
+    
+    # Also register with client_manager for monitoring stats
     client_host = websocket.client.host
-    client_id = f"ws_{id(websocket)}"
     user_agent = websocket.headers.get("user-agent", "Unknown")
-    
-    session = client_manager.register_client(client_id, client_host, user_agent)
+    client_manager.register_client(client_id, client_host, user_agent)
     
     try:
         while True:
-            # Wait for messages (keepalive or commands)
-            # We also want to push updates. 
-            # In a simple loop, we can use asyncio.wait_for to do both?
-            # Or just let the client request, OR have a background task push.
-            # Requirement: "Frontend auto-refresh every 5s". 
-            # Let's push data every 5 seconds to all clients, or this specific one.
-            
-            # Here we just listen. The broadcasting can be done by a background task 
-            # or we can do a simple send-loop here if we don't block reading.
-            
-            # Simpler approach: React frontend sends "ping" or "get_data", we reply.
-            # But "Server-Sent Events" or "WebSocket" implies server push.
-            # Let's do a loop that sends data every 5s if no message received?
-            
+            # Keep connection alive and listen for any client messages
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
-                # Handle incoming commands if any
-                msg = json.loads(data)
-                if msg.get("type") == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
+                # Wait for messages (keepalive or commands) with timeout
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                
+                # Handle ping/pong
+                try:
+                    msg = json.loads(data)
+                    if msg.get("type") == "ping":
+                        await websocket.send_text(json.dumps({"type": "pong"}))
+                except:
+                    pass
+                    
                 client_manager.update_activity(client_id)
             except asyncio.TimeoutError:
-                # Timeout reached, push update
-                stats = {
-                    "type": "update",
-                    "system": monitor.get_system_stats(),
-                    "model": monitor.get_model_info(),
-                    "clients": client_manager.get_clients(),
-                    "settings": monitor.get_settings_summary()
-                }
-                await websocket.send_text(json.dumps(stats))
+                # Just a heartbeat check
+                pass
                 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        monitor_hub.unregister(api_key, websocket)
         client_manager.disconnect_client(client_id)
     except Exception as e:
-        logger.error(f"WS Error: {e}")
-        manager.disconnect(websocket)
+        logger.error(f"WebSocket error: {e}")
+        monitor_hub.unregister(api_key, websocket)
         client_manager.disconnect_client(client_id)
 
 @router.post("/clients/{client_id}/kick", dependencies=[Depends(verify_api_key)])

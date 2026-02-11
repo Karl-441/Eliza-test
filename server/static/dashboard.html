@@ -555,7 +555,7 @@
                     </h2>
                     <div class="flex gap-2">
                         <input v-model="ma.search" placeholder="Search outputs..." class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white w-64">
-                        <select v-model="ma.activeProject" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white">
+                        <select v-model="ma.activeProject" @change="fetchProjects" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-white">
                             <option value="">All Projects</option>
                             <option v-for="p in ma.projects" :key="p.id" :value="p.id">{{ p.name }}</option>
                         </select>
@@ -563,6 +563,24 @@
                         <button @click="createProjectQuick" class="gfl-btn px-3 py-1 text-sm rounded">+ NEW PROJECT</button>
                     </div>
                 </div>
+
+                <!-- Workflow Controls (Active Project Only) -->
+                <div v-if="ma.activeProject" class="mb-4 p-3 bg-gray-900/50 border border-gray-700 rounded flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                         <span class="text-sm text-gray-400 font-bold uppercase">Workflow Status:</span>
+                         <span class="text-sm font-mono px-2 py-0.5 rounded" :class="{
+                             'bg-green-500/20 text-green-400': ma.workflowStatus === 'running',
+                             'bg-yellow-500/20 text-yellow-400': ma.workflowStatus === 'paused',
+                             'bg-gray-700 text-gray-300': ma.workflowStatus === 'idle' || ma.workflowStatus === 'completed',
+                             'bg-red-500/20 text-red-400': ma.workflowStatus === 'failed'
+                         }">{{ ma.workflowStatus.toUpperCase() }}</span>
+                    </div>
+                    <div class="flex gap-2">
+                         <button v-if="ma.workflowStatus === 'running'" @click="controlWorkflow('pause')" class="gfl-btn px-3 py-1 text-sm rounded border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black">PAUSE</button>
+                         <button v-if="ma.workflowStatus === 'paused'" @click="controlWorkflow('resume')" class="gfl-btn px-3 py-1 text-sm rounded border-green-500 text-green-500 hover:bg-green-500 hover:text-black">RESUME</button>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div v-for="item in filteredMA" :key="item.timestamp + item.model" class="bg-gray-900 rounded border border-gray-700 p-4 hover:border-yellow-500 transition">
                         <div class="flex items-center justify-between mb-2">
@@ -1727,7 +1745,35 @@
                     ws.onclose = () => { connected.value = false; setTimeout(connect, 3000); };
                 };
 
-                const ma = Vue.reactive({ projects: [], activeProject: '', search: '', outputs: [] });
+                const ma = Vue.reactive({ projects: [], activeProject: '', search: '', outputs: [], workflowStatus: 'idle', workflowTasks: [] });
+                
+                const fetchWorkflowStatus = async () => {
+                    if (!ma.activeProject) return;
+                    try {
+                        const res = await fetch(`/api/v1/projects/${ma.activeProject}/workflow`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            ma.workflowStatus = data.status || 'idle';
+                            ma.workflowTasks = data.tasks || [];
+                        }
+                    } catch(e) {}
+                };
+
+                const controlWorkflow = async (action) => {
+                    if (!ma.activeProject) return;
+                    if (!confirm(`${action.toUpperCase()} workflow?`)) return;
+                    try {
+                        const res = await fetch(`/api/v1/projects/${ma.activeProject}/control`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ action })
+                        });
+                        if (res.ok) {
+                            fetchWorkflowStatus();
+                        }
+                    } catch(e) { alert("Action failed"); }
+                };
+
                 const fetchProjects = async () => {
                     if (currentUser.value?.role === 'guest') { ma.projects = []; ma.outputs = []; return; }
                     const res = await fetch('/api/v1/projects/');
@@ -1743,14 +1789,26 @@
                             }
                         }
                         ma.outputs = logs.sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
+                        
+                        // Update workflow status if active project selected
+                        if (ma.activeProject) fetchWorkflowStatus();
                     }
                 };
+
+                // Poll workflow status
+                setInterval(() => {
+                    if (currentTab.value === 'dashboard' && ma.activeProject) {
+                        fetchWorkflowStatus();
+                    }
+                }, 2000);
+
                 const createProjectQuick = async () => {
                     const name = (ma.newName || '').trim();
                     if(!name) return;
                     const res = await fetch('/api/v1/projects/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name}) });
                     if(res.ok) fetchProjects();
                 };
+
                 const filteredMA = Vue.computed(() => {
                     const term = (ma.search || '').toLowerCase();
                     return ma.outputs.filter(x => {
@@ -1794,7 +1852,7 @@
                     currentTab, connected, stats, currentUser, availableModels,
                     // Dashboard
                     loadModel, reloadModel, previewTTS, notifyClient, kickClient,
-                    ma, filteredMA, createProjectQuick, fetchProjects,
+                    ma, filteredMA, createProjectQuick, fetchProjects, controlWorkflow,
                     // Models
                     remoteModels, downloads, hfSearchQuery, hfResults, manualDownload,
                     fetchModelData, downloadModel, searchHF, promptDownload,

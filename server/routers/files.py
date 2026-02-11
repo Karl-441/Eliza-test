@@ -25,3 +25,23 @@ async def analyze_file(file: UploadFile = File(...), user: dict = Depends(get_cu
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+@router.get("/files/output")
+def list_output_files(user: dict = Depends(get_current_user)):
+    """List files in the server output directory"""
+    output_dir = os.path.join(os.getcwd(), "server", "output")
+    if not os.path.exists(output_dir):
+        return {"files": []}
+    
+    files = []
+    for f in os.listdir(output_dir):
+        full_path = os.path.join(output_dir, f)
+        if os.path.isfile(full_path):
+            # Return relative path for download
+            files.append({
+                "name": f,
+                "url": f"/output/{f}",
+                "size": os.path.getsize(full_path),
+                "mtime": os.path.getmtime(full_path)
+            })
+    return {"files": files}

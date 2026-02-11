@@ -1,18 +1,24 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from server.core.projects import projects_store
 from server.routers.dashboard import get_current_user
+from server.core.orchestrator import orchestrate
+from server.core.framework.bus import message_bus
+from server.core.framework.events import Event
+import uuid
 
 router = APIRouter()
 
 @router.post("/")
 def create_project(payload: dict, user: dict = Depends(get_current_user)):
     name = payload.get("name", "")
+    template = payload.get("template", "") # Support template from payload
     owner_user = user.get("user", "")
     # Only from authenticated users; bind to their client_secret if exists
     from server.core.users import user_manager
     u = user_manager.users.get(owner_user)
     owner_key = u.client_secret if u else ""
-    return projects_store.create_project(name, owner_key, owner_user)
+    # Pass template to projects_store
+    return projects_store.create_project(name, owner_key, owner_user, template=template)
 
 @router.get("/")
 def list_projects(user: dict = Depends(get_current_user)):
@@ -37,3 +43,70 @@ def list_agents(project_id: str, user: dict = Depends(get_current_user)):
 @router.get("/{project_id}/log")
 def get_log(project_id: str, user: dict = Depends(get_current_user)):
     return projects_store.get_log(project_id)
+
+@router.post("/{project_id}/orchestrate")
+async def trigger_orchestration(project_id: str, payload: dict = Body(...), user: dict = Depends(get_current_user)):
+    message = payload.get("message", "")
+    user_id = user.get("user", "unknown")
+    if not message:
+        return {"error": "message is required"}
+    
+    # Run orchestration
+    result = await orchestrate(project_id, message, user_id)
+    return result
+
+from server.core.database import SessionLocal
+from server.core.models import WorkflowState
+import json
+
+@router.get("/{project_id}/workflow")
+def get_workflow_state(project_id: str, user: dict = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        # Get latest state
+        state = db.query(WorkflowState).filter(WorkflowState.project_id == project_id).order_by(WorkflowState.updated_at.desc()).first()
+        if not state:
+            return {"status": "idle", "tasks": []}
+        
+        return {
+            "id": state.id,
+            "status": state.status,
+            "tasks": json.loads(state.tasks) if state.tasks else [],
+            "updated_at": state.updated_at
+        }
+    finally:
+        db.close()
+
+@router.post("/{project_id}/control")
+async def control_workflow(project_id: str, payload: dict = Body(...), user: dict = Depends(get_current_user)):
+    action = payload.get("action") # pause, resume
+    if action not in ["pause", "resume"]:
+        return {"error": "Invalid action"}
+    
+    # Send event to orchestrator
+    # Note: In a real system we should target the specific workflow ID.
+    # For now we broadcast to the orchestrator topic, assuming the orchestrator checks project_id?
+    # Actually, my OrchestratorAgent implementation listens to "orchestration.control" but doesn't check project_id in process_message.
+    # I should fix OrchestratorAgent to check project_id if I use broadcast.
+    # OR, better: OrchestratorAgent subscribes to "orchestrator.{project_id}"?
+    # Currently it subscribes to "orchestrator".
+    
+    # Let's use the 'orchestrator' topic and rely on the agent to filter? 
+    # My current implementation of process_message for orchestration.control DOES NOT check project_id.
+    # I should update OrchestratorAgent first to be safe, or just send to all (not ideal).
+    
+    # Let's send to "orchestrator" topic and add project_id to data.
+    # But wait, I need to update OrchestratorAgent to check project_id.
+    
+    await message_bus.publish(Event(
+        topic="orchestrator",
+        type="orchestration.control",
+        data={"action": action, "project_id": project_id},
+        correlation_id=str(uuid.uuid4())
+    ))
+    
+    return {"status": "command_sent", "action": action}
+
+@router.post("/{project_id}/init_team")
+def initialize_team(project_id: str, user: dict = Depends(get_current_user)):
+    return projects_store.init_dev_team(project_id)

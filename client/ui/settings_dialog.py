@@ -43,6 +43,7 @@ class SettingsDialog(QDialog):
         self.content_container = QWidget()
         self.content_container.setAttribute(Qt.WA_TranslucentBackground)
         self.main_stack.addWidget(self.content_container)
+        self.content_container.raise_()
         
         self.layout = QVBoxLayout(self.content_container)
         self.layout.setContentsMargins(0, 0, 0, 0)

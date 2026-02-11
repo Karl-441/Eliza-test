@@ -12,6 +12,7 @@ class Settings(BaseModel):
     # LLM Settings
     models_root_dir: str = str(BASE_DIR / "Models" / "llm")
     model_path: str = str(LLM_DIR / "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+    default_model_name: str = "server-qwen2.5-7b"  # Logical name used in projects
     n_ctx: int = 4096
     n_threads: int = 4
     temperature: float = 0.7

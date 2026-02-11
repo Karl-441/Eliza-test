@@ -9,7 +9,11 @@ from server.core.config import settings
 from server.middleware.auth import LoggingMiddleware, verify_api_key
 from server.middleware.rate_limit import RateLimitMiddleware
 from server.middleware.tracker import ClientTrackingMiddleware
-from server.routers import system, chat, audio, profile, config, dashboard as dashboard_router, tts_config, theme, search as search_router, vision_api, files
+from server.routers import system, chat, audio, profile, config, dashboard as dashboard_router, tts_config, theme, search as search_router, vision_api, files, projects
+from server.core.database import engine, Base
+
+# Ensure DB tables exist
+Base.metadata.create_all(bind=engine)
 
 # Create FastAPI App with Versioning
 app = FastAPI(
@@ -45,6 +49,13 @@ try:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 except Exception as e:
     print(f"Warning: Could not mount static files: {e}")
+
+OUTPUT_DIR = BASE_DIR / "output"
+try:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount("/output", StaticFiles(directory=str(OUTPUT_DIR)), name="output")
+except Exception as e:
+    print(f"Warning: Could not mount output files: {e}")
 
 @app.get("/dashboard", tags=["System"])
 async def dashboard():
@@ -82,6 +93,7 @@ app.include_router(dashboard_router.router, prefix=API_PREFIX + "/dashboard", ta
 app.include_router(search_router.router, prefix=API_PREFIX, tags=["Search"])
 app.include_router(vision_api.router, prefix=API_PREFIX, tags=["Vision"])
 app.include_router(files.router, prefix=API_PREFIX, tags=["Files"])
+app.include_router(projects.router, prefix=API_PREFIX + "/projects", tags=["Projects"], dependencies=[Depends(verify_api_key)])
 
 @app.get("/", tags=["Root"])
 def root():

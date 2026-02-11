@@ -12,3 +12,5 @@ tqdm>=4.66.0
 faster-whisper>=1.0.0
 pyautogui>=0.9.54
 pypdf>=3.17.0
+sqlalchemy>=2.0.0
+python-multipart>=0.0.9
