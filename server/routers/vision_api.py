@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from server.core.vision import vision_manager
+from server.core.i18n import I18N
 import shutil
 import os
 import tempfile
@@ -9,7 +10,7 @@ router = APIRouter(prefix="/api/v1/vision", tags=["vision"])
 @router.post("/detect")
 async def detect_objects(file: UploadFile = File(...)):
     if not vision_manager.enabled:
-        raise HTTPException(status_code=503, detail="Vision features are disabled")
+        raise HTTPException(status_code=503, detail=I18N.t("error_vision_disabled"))
     
     # Save temp file
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
@@ -26,7 +27,7 @@ async def detect_objects(file: UploadFile = File(...)):
 @router.post("/analyze")
 async def analyze_scene(file: UploadFile = File(...)):
     if not vision_manager.enabled:
-        raise HTTPException(status_code=503, detail="Vision features are disabled")
+        raise HTTPException(status_code=503, detail=I18N.t("error_vision_disabled"))
     
     # Save temp file
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:

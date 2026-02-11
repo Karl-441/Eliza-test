@@ -21,6 +21,7 @@ class Settings(BaseModel):
     # Server Settings
     host: str = "0.0.0.0"
     port: int = 8000
+    language: str = "zh"
     
     # Search Settings
     enable_search: bool = True

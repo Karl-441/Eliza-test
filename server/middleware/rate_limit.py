@@ -3,6 +3,7 @@ from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 import time
 from collections import defaultdict
+from server.core.i18n import I18N
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, max_requests: int = 60, window_seconds: int = 60):
@@ -26,7 +27,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if len(self.request_counts[client_id]) >= self.max_requests:
             return JSONResponse(
                 status_code=429,
-                content={"detail": "Rate limit exceeded. Please try again later."}
+                content={"detail": I18N.t("error_rate_limit_exceeded")}
             )
             
         self.request_counts[client_id].append(current_time)

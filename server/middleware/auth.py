@@ -4,6 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import time
 import logging
 from server.core.users import user_manager
+from server.core.i18n import I18N
 
 # Simple API Key Auth
 API_KEY_NAME = "X-API-Key"
@@ -20,7 +21,7 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
         # For development ease, if no key provided, maybe allow? 
         # The prompt says "Strict interface authentication".
         # So we reject.
-        raise HTTPException(status_code=403, detail="Could not validate credentials")
+        raise HTTPException(status_code=403, detail=I18N.t("auth_validation_failed"))
     return api_key
 
 class LoggingMiddleware(BaseHTTPMiddleware):

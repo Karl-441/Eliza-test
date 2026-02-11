@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body
 from server.core.config import settings
 from server.core.prompts import prompt_manager, PromptTemplate
+from server.core.i18n import I18N
 
 router = APIRouter()
 
@@ -25,7 +26,7 @@ async def update_config(config: dict = Body(...)):
         if hasattr(settings, k):
             setattr(settings, k, v)
     settings.save()
-    return {"status": "success", "message": "Configuration updated"}
+    return {"status": "success", "message": I18N.t("config_updated")}
 
 @router.get("/prompts/active")
 async def get_active_prompt():
@@ -35,7 +36,7 @@ async def get_active_prompt():
 async def set_active_prompt(template_id: str = Body(..., embed=True)):
     if prompt_manager.set_active(template_id):
         return {"status": "success", "active_id": template_id}
-    raise HTTPException(status_code=404, detail="Template not found")
+    raise HTTPException(status_code=404, detail=I18N.t("template_not_found"))
 
 @router.get("/prompts")
 async def list_prompts():
@@ -54,5 +55,5 @@ async def save_prompt(prompt: dict = Body(...)):
 async def delete_prompt(prompt_id: str):
     if prompt_manager.delete_template(prompt_id):
         return {"status": "success"}
-    raise HTTPException(status_code=404, detail="Template not found")
+    raise HTTPException(status_code=404, detail=I18N.t("template_not_found"))
 

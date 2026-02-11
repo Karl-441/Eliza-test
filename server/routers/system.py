@@ -6,6 +6,7 @@ from server.core.llm import llm_engine
 from server.core.audio import audio_manager
 from server.core.system_control import system_controller
 from server.routers.dashboard import get_current_admin
+from server.core.i18n import I18N
 
 router = APIRouter()
 
@@ -30,30 +31,30 @@ def root():
 def get_system_status():
     tts_status = audio_manager.check_tts_health()
     return {
-        "llm": {"status": llm_engine.model is not None, "message": "Model Loaded" if llm_engine.model else "Model Missing"},
+        "llm": {"status": llm_engine.model is not None, "message": I18N.t("model_loaded") if llm_engine.model else I18N.t("model_missing")},
         "tts": tts_status,
-        "asr": {"status": True, "message": "Ready (On Demand)"} 
+        "asr": {"status": True, "message": I18N.t("asr_ready")} 
     }
 
 @router.post("/control/mouse/move")
 def move_mouse(data: MouseMoveRequest, user: dict = Depends(get_current_admin)):
     success = system_controller.move_mouse(data.x, data.y, data.duration)
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to move mouse")
+        raise HTTPException(status_code=500, detail=I18N.t("mouse_move_fail"))
     return {"status": "success"}
 
 @router.post("/control/mouse/click")
 def click_mouse(data: MouseClickRequest, user: dict = Depends(get_current_admin)):
     success = system_controller.click_mouse(data.x, data.y, data.button)
     if not success:
-        raise HTTPException(status_code=500, detail="Failed to click mouse")
+        raise HTTPException(status_code=500, detail=I18N.t("mouse_click_fail"))
     return {"status": "success"}
 
 @router.post("/control/launch")
 def launch_app(data: AppLaunchRequest, user: dict = Depends(get_current_admin)):
     success = system_controller.launch_app(data.app_name)
     if not success:
-        raise HTTPException(status_code=403, detail="Application not allowed or failed to launch")
+        raise HTTPException(status_code=403, detail=I18N.t("app_launch_fail"))
     return {"status": "success"}
 
 @router.get("/control/processes")

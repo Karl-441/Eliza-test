@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body, Depends
 from server.core.memory import memory_manager
 from server.routers.dashboard import get_current_user
+from server.core.i18n import I18N
 
 router = APIRouter()
 
@@ -37,4 +38,4 @@ async def import_profile(profile: dict = Body(..., embed=True)):
 @router.delete("/memory")
 async def clear_memory():
     memory_manager.clear_history()
-    return {"status": "success", "message": "Memory cleared"}
+    return {"status": "success", "message": I18N.t("memory_cleared")}

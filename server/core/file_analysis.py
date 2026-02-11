@@ -3,6 +3,7 @@ import logging
 import hashlib
 from typing import Dict, Any, Optional
 from pathlib import Path
+from server.core.i18n import I18N
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class FileAnalyzer:
         # 1. Check Magic Numbers / Extension mismatch (Simplified)
         ext = os.path.splitext(file_path)[1].lower()
         if ext == ".pdf" and not content_preview.startswith(b"%PDF"):
-            scan_results["issues"].append("Invalid PDF header")
+            scan_results["issues"].append(I18N.t("file_scan_invalid_pdf_header"))
             scan_results["safe"] = False
             
         # 2. Check for suspicious content in text files
@@ -46,7 +47,7 @@ class FileAnalyzer:
                 suspicious_patterns = ["eval(", "exec(", "os.system(", "subprocess.Popen("]
                 found = [p for p in suspicious_patterns if p in text]
                 if found and ext != ".py": # Python files naturally have these, maybe warn but not flag unsafe immediately
-                    scan_results["issues"].append(f"Suspicious code patterns found: {found}")
+                    scan_results["issues"].append(I18N.t("file_scan_suspicious_patterns", found=found))
                     scan_results["safe"] = False
             except:
                 pass
@@ -66,7 +67,7 @@ class FileAnalyzer:
                 return text
             except Exception as e:
                 logger.error(f"PDF extraction error: {e}")
-                return f"[Error extracting PDF: {str(e)}]"
+                return I18N.t("file_extract_pdf_error", error=str(e))
         
         elif ext in self.supported_extensions:
             try:
@@ -74,13 +75,13 @@ class FileAnalyzer:
                     return f.read()
             except Exception as e:
                 logger.error(f"Text extraction error: {e}")
-                return f"[Error reading file: {str(e)}]"
+                return I18N.t("file_extract_read_error", error=str(e))
                 
-        return "[Unsupported file format for text extraction]"
+        return I18N.t("file_extract_unsupported")
 
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
         if not os.path.exists(file_path):
-            return {"error": "File not found"}
+            return {"error": I18N.t("file_not_found")}
             
         stats = os.stat(file_path)
         file_hash = self._calculate_hash(file_path)
@@ -97,7 +98,7 @@ class FileAnalyzer:
             # Truncate for summary if too long
             summary = text_content[:500] + "..." if len(text_content) > 500 else text_content
         else:
-            summary = "[Content hidden due to security flags]"
+            summary = I18N.t("file_content_hidden_security")
 
         return {
             "filename": os.path.basename(file_path),

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .database import SessionLocal, engine, Base
 from .models import Project, Agent, ProjectLog
+from .i18n import I18N
 
 # Initialize Database
 Base.metadata.create_all(bind=engine)
@@ -23,7 +24,7 @@ class ProjectsStore:
         db = self._get_db()
         try:
             new_project = Project(
-                name=name or "新项目",
+                name=name or I18N.t("default_new_project_name"),
                 owner_key=owner_key,
                 owner_user=owner_user,
                 created_at=datetime.utcnow()
@@ -79,7 +80,7 @@ class ProjectsStore:
         try:
             project = db.query(Project).filter(Project.id == project_id).first()
             if not project:
-                return {"error": "project_not_found"}
+                return {"error": I18N.t("project_not_found")}
             
             agent = Agent(
                 project_id=project_id,
@@ -115,26 +116,26 @@ class ProjectsStore:
                 {
                     "role_name": "Product Manager",
                     "model_name": settings.default_model_name,
-                    "description": "负责需求分析和任务规划",
-                    "system_prompt": "你是产品经理。你的职责是分析用户需求，将其转化为清晰的功能规格说明书。请用结构化的方式描述功能点。"
+                    "description": I18N.t("role_pm_desc"),
+                    "system_prompt": I18N.t("role_pm_prompt")
                 },
                 {
                     "role_name": "Architect",
                     "model_name": settings.default_model_name,
-                    "description": "负责系统架构设计和技术选型",
-                    "system_prompt": "你是系统架构师。请设计系统的整体架构，选择合适的技术栈，并解释原因。"
+                    "description": I18N.t("role_arch_desc"),
+                    "system_prompt": I18N.t("role_arch_prompt")
                 },
                 {
-                    "role_name": "Coder",
+                    "role_name": "Developer",
                     "model_name": settings.default_model_name,
-                    "description": "负责代码实现",
-                    "system_prompt": "你是高级开发工程师。请根据需求和架构编写高质量的代码。代码需要包含注释。"
+                    "description": I18N.t("role_dev_desc"),
+                    "system_prompt": I18N.t("role_dev_prompt")
                 },
                 {
-                    "role_name": "Tester",
+                    "role_name": "QA Engineer",
                     "model_name": settings.default_model_name,
-                    "description": "负责测试用例编写和代码审查",
-                    "system_prompt": "你是QA工程师。请编写测试用例，并检查代码的逻辑错误和潜在bug。"
+                    "description": I18N.t("role_qa_desc"),
+                    "system_prompt": I18N.t("role_qa_prompt")
                 }
             ]
             

@@ -13,6 +13,7 @@ from cryptography.hazmat.backends import default_backend
 
 from .config import settings
 from .prompts import prompt_manager
+from .i18n import I18N
 
 class MemoryNode:
     """
@@ -388,7 +389,7 @@ class MemoryManager:
         if not relevant_nodes:
             return ""
             
-        context_str = "Relevant Past Memories:\n"
+        context_str = f"{I18N.t('memory_relevant_past')}\n"
         for node in relevant_nodes:
             # Format timestamp nicely
             ts_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(node.timestamp))

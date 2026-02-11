@@ -9,6 +9,7 @@ import tempfile
 from ..api_client import APIClient
 from ..core.theme_manager import ThemeManager
 from ..core.voice_system import VoiceSystem
+from ..framework.i18n import I18N
 from .voice_widget import VoiceControlWidget
 from .settings_dialog import SettingsDialog
 from .multi_agent_ui import MultiAgentWidget
@@ -73,7 +74,7 @@ class MainWindow(QMainWindow):
         self.voice_system = VoiceSystem(api_url=f"{ws_base}/audio/stream")
         self.voice_system.text_received.connect(self.on_voice_text)
         self.voice_system.wake_detected.connect(self.on_wake_word)
-        self.voice_system.status_changed.connect(lambda s: self.add_system_message(f"VOICE: {s}"))
+        self.voice_system.status_changed.connect(lambda s: self.add_system_message(I18N.t("voice_status_prefix").format(s)))
         
         # Workers
         self.worker = None
@@ -117,7 +118,7 @@ class MainWindow(QMainWindow):
         self._ui_font_size = int(self.settings.value("ui_font_size_override", 0)) or self.compute_target_font_size()
         # THEME.set_base_font_size(self._ui_font_size) # TODO: Implement in ThemeEngine if needed
         
-        self.add_system_message("Initializing Neural Link...")
+        self.add_system_message(I18N.t("initializing_neural_link"))
         QTimer.singleShot(1000, self.check_server)
         
         self.center_window()
@@ -138,6 +139,56 @@ class MainWindow(QMainWindow):
         self.anim_font = QPropertyAnimation(self, b"ui_font_size")
         self.anim_font.setDuration(THEME.anim["duration_normal"])
         self.anim_font.setEasingCurve(QEasingCurve.OutCubic)
+
+        I18N.language_changed.connect(self.retranslate_ui)
+        self.retranslate_ui()
+
+    def retranslate_ui(self):
+        self.setWindowTitle(I18N.t("window_title"))
+        if hasattr(self, "lbl_adjutant"):
+            self.lbl_adjutant.setText(I18N.t("adjutant_title"))
+        if hasattr(self, "btn_upload"):
+            self.btn_upload.setText(I18N.t("change_adjutant"))
+        if hasattr(self, "log_lbl"):
+            self.log_lbl.setText(I18N.t("mission_logs"))
+        if hasattr(self, "status_title"):
+            self.status_title.setText(I18N.t("system_vitals"))
+        if hasattr(self, "btn_refresh"):
+            self.btn_refresh.setToolTip(I18N.t("refresh_status_tooltip"))
+        if hasattr(self, "status_agent"):
+            self.status_agent.label.setText(I18N.t("status_agent"))
+        if hasattr(self, "status_server"):
+            self.status_server.label.setText(I18N.t("status_uplink"))
+        if hasattr(self, "status_llm"):
+            self.status_llm.label.setText(I18N.t("status_neural"))
+        if hasattr(self, "status_tts"):
+            self.status_tts.label.setText(I18N.t("status_vocal"))
+        if hasattr(self, "header_title"):
+            self.header_title.setText(I18N.t("command_center"))
+        if hasattr(self, "btn_chat_multi"):
+            self.btn_chat_multi.setText(I18N.t("chat_multi_btn"))
+            self.btn_chat_multi.setToolTip(I18N.t("toggle_chat_multi_tooltip"))
+        if hasattr(self, "btn_scroll_bottom"):
+            self.btn_scroll_bottom.setText(I18N.t("latest"))
+        if hasattr(self, "chk_enter_send"):
+            self.chk_enter_send.setText(I18N.t("enter_to_send"))
+        
+        if hasattr(self, "btn_settings"):
+            self.btn_settings.setText(I18N.t("btn_settings"))
+        if hasattr(self, "btn_tts"):
+            self.btn_tts.setText(I18N.t("btn_tts_on") if self.btn_tts.isChecked() else I18N.t("btn_tts_off"))
+        if hasattr(self, "btn_search"):
+            self.btn_search.setText(I18N.t("btn_net_on") if self.btn_search.isChecked() else I18N.t("btn_net_off"))
+            
+        if hasattr(self, "func_bar"):
+            self.func_bar.btn_multi_agent.setText(I18N.t("btn_multi_agent"))
+            self.func_bar.btn_memory.setText(I18N.t("btn_memory"))
+            self.func_bar.btn_voice.setText(I18N.t("btn_voice"))
+            self.func_bar.btn_clear.setText(I18N.t("btn_purge"))
+            self.func_bar.btn_send.setText(I18N.t("btn_send"))
+            
+        if hasattr(self, "input_box"):
+            self.input_box.update()
 
     def center_window(self):
         screen_geometry = QApplication.desktop().screenGeometry()
@@ -247,9 +298,9 @@ class MainWindow(QMainWindow):
         frame_layout = QVBoxLayout(self.char_frame)
         frame_layout.setContentsMargins(THEME.spacing["s"], THEME.spacing["s"], THEME.spacing["s"], THEME.spacing["s"])
         
-        lbl_adjutant = QLabel("ADJUTANT // TACTICAL DOLL")
-        lbl_adjutant.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; font-size: {THEME.fonts['size_small']}px; letter-spacing: 2px;")
-        frame_layout.addWidget(lbl_adjutant)
+        self.lbl_adjutant = QLabel("ADJUTANT // TACTICAL DOLL")
+        self.lbl_adjutant.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; font-size: {THEME.fonts['size_small']}px; letter-spacing: 2px;")
+        frame_layout.addWidget(self.lbl_adjutant)
         
         self.char_image = QLabel()
         self.char_image.setAlignment(Qt.AlignCenter)
@@ -258,9 +309,9 @@ class MainWindow(QMainWindow):
         self.load_avatar_image()
         frame_layout.addWidget(self.char_image, 0, Qt.AlignCenter)
         
-        btn_upload = TacticalButton("CHANGE ADJUTANT", parent=self)
-        btn_upload.clicked.connect(self.change_avatar)
-        frame_layout.addWidget(btn_upload)
+        self.btn_upload = TacticalButton("CHANGE ADJUTANT", parent=self)
+        self.btn_upload.clicked.connect(self.change_avatar)
+        frame_layout.addWidget(self.btn_upload)
         
         layout.addWidget(self.char_frame)
         
@@ -269,15 +320,15 @@ class MainWindow(QMainWindow):
         log_layout.setContentsMargins(THEME.spacing["s"], THEME.spacing["s"], THEME.spacing["s"], THEME.spacing["s"])
         
         log_header_layout = QHBoxLayout()
-        log_lbl = QLabel("MISSION LOGS")
-        log_lbl.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; letter-spacing: 1px;")
+        self.log_lbl = QLabel("MISSION LOGS")
+        self.log_lbl.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; letter-spacing: 1px;")
         
         self.log_filter = QComboBox()
         self.log_filter.addItems(["ALL", "INFO", "WARN", "ERROR"])
         self.log_filter.setStyleSheet(f"background: {THEME.get_color('background_secondary')}; color: {THEME.get_color('text_primary')}; border: 1px solid {THEME.get_color('accent_dim')}; padding: 2px;")
         self.log_filter.currentTextChanged.connect(self.on_log_filter_changed)
         
-        log_header_layout.addWidget(log_lbl)
+        log_header_layout.addWidget(self.log_lbl)
         log_header_layout.addStretch()
         log_header_layout.addWidget(self.log_filter)
         log_layout.addLayout(log_header_layout)
@@ -298,16 +349,16 @@ class MainWindow(QMainWindow):
         self.status_title = QLabel("SYSTEM VITALS")
         self.status_title.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; letter-spacing: 1px;")
         
-        btn_refresh = QPushButton("⟳")
-        btn_refresh.setFixedSize(24, 24)
-        btn_refresh.setCursor(Qt.PointingHandCursor)
-        btn_refresh.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: none; font-size: 16px; font-weight: bold;")
-        btn_refresh.setToolTip("Refresh Status")
-        btn_refresh.clicked.connect(self.update_server_status)
+        self.btn_refresh = QPushButton("⟳")
+        self.btn_refresh.setFixedSize(24, 24)
+        self.btn_refresh.setCursor(Qt.PointingHandCursor)
+        self.btn_refresh.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: none; font-size: 16px; font-weight: bold;")
+        self.btn_refresh.setToolTip("Refresh Status")
+        self.btn_refresh.clicked.connect(self.update_server_status)
         
         status_header.addWidget(self.status_title)
         status_header.addStretch()
-        status_header.addWidget(btn_refresh)
+        status_header.addWidget(self.btn_refresh)
         status_layout.addLayout(status_header)
         
         grid_layout = QGridLayout()
@@ -348,14 +399,14 @@ class MainWindow(QMainWindow):
         top_layout = QHBoxLayout(top_bar)
         top_layout.setContentsMargins(THEME.spacing["l"], 0, THEME.spacing["l"], 0)
         
-        header_title = QLabel("COMMAND CENTER")
-        header_title.setStyleSheet(f"color: {THEME.get_color('accent')}; font-size: {THEME.fonts['size_h2']}px; font-weight: bold; letter-spacing: 2px;")
+        self.header_title = QLabel("COMMAND CENTER")
+        self.header_title.setStyleSheet(f"color: {THEME.get_color('accent')}; font-size: {THEME.fonts['size_h2']}px; font-weight: bold; letter-spacing: 2px;")
         
         self.btn_chat_multi = QPushButton("CHAT-MULTI")
         self.btn_chat_multi.setFixedHeight(32)
         self.btn_chat_multi.setCursor(Qt.PointingHandCursor)
         self.btn_chat_multi.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: 1px solid {THEME.get_color('accent_dim')}; padding: 0 12px; border-radius: 16px;")
-        self.btn_chat_multi.setToolTip("切换聊天/多智能体模式")
+        self.btn_chat_multi.setToolTip(I18N.t("tooltip_chat_mode"))
         self.btn_chat_multi.clicked.connect(self.toggle_chat_multi_mode)
         
         btn_theme = QPushButton("☀/☾")
@@ -369,7 +420,7 @@ class MainWindow(QMainWindow):
         lbl_logo.setScaledContents(True)
         
         top_layout.addWidget(lbl_logo)
-        top_layout.addWidget(header_title)
+        top_layout.addWidget(self.header_title)
         top_layout.addStretch()
         top_layout.addWidget(self.btn_chat_multi)
         top_layout.addWidget(btn_theme)
@@ -485,7 +536,7 @@ class MainWindow(QMainWindow):
             p.end()
             self.char_image.setPixmap(target)
         else:
-            self.char_image.setText("NO SIGNAL")
+            self.char_image.setText(I18N.t("no_signal"))
             self.char_image.setStyleSheet(f"color: {THEME.get_color('accent')}; font-size: {THEME.fonts['size_h1']}px; font-weight: bold; border: 1px solid {THEME.get_color('accent_dim')};")
 
     def toggle_theme(self):
@@ -503,7 +554,7 @@ class MainWindow(QMainWindow):
         self.setup_right_panel()
         self.main_layout.setStretchFactor(self.left_panel, 3)
         self.main_layout.setStretchFactor(self.right_panel, 7)
-        self.add_system_message("Visual theme re-calibrated.")
+        self.add_system_message(I18N.t("theme_recalibrated"))
 
     def apply_styles(self):
         # Darker backgrounds for panels as requested
@@ -672,13 +723,13 @@ class MainWindow(QMainWindow):
 
     def on_check_server_finished(self, result):
         if result.get("data"):
-            self.add_system_message("Uplink established. Core online.")
+            self.add_system_message(I18N.t("uplink_established"))
             self.status_server.set_status("online")
             self.fetch_voices()
             self.fetch_tts_preferences()
             QTimer.singleShot(100, self.theme_manager.fetch_theme)
         else:
-            self.add_system_message("Uplink failed. Retrying sequence...")
+            self.add_system_message(I18N.t("uplink_failed"))
             self.status_server.set_status("offline")
             QTimer.singleShot(3000, self.check_server)
 
@@ -694,7 +745,7 @@ class MainWindow(QMainWindow):
             self.tts_speed = tts.get("speed", 100) / 100.0
             self.tts_volume = tts.get("volume", 100) / 100.0
             self.tts_voice = tts.get("voice_id", "default")
-            self.add_system_message(f"TTS Config Synced: {self.tts_voice} @ {self.tts_speed}x")
+            self.add_system_message(I18N.t("tts_config_synced").format(self.tts_voice, self.tts_speed))
 
     def fetch_voices(self):
         self.voice_worker = Worker(self.client.get_voices)
@@ -719,7 +770,7 @@ class MainWindow(QMainWindow):
             self.handle_command(text)
             return
         self.add_chat_bubble(text, True)
-        self.add_system_message("Processing request...")
+        self.add_system_message(I18N.t("processing_request"))
         self.set_character_state("thinking")
         
         use_search = self.btn_search.isChecked() or force_search
@@ -737,7 +788,7 @@ class MainWindow(QMainWindow):
         search_used = data.get("search_used", False)
         
         if search_used:
-            self.add_system_message("Net Search Active: Data retrieved from external nodes.")
+            self.add_system_message(I18N.t("net_search_active"))
             
         self.add_chat_bubble(response, False)
         
@@ -748,18 +799,18 @@ class MainWindow(QMainWindow):
         cmd = text[1:].strip().lower()
         if cmd == "clear":
             self.clear_chat_visuals()
-            self.add_system_message("Visual logs cleared.")
+            self.add_system_message(I18N.t("visual_logs_cleared"))
         elif cmd == "reset":
             self.clear_memory()
             self.clear_chat_visuals()
-            self.add_system_message("System reset complete.")
+            self.add_system_message(I18N.t("system_reset_complete"))
         elif cmd == "help":
-            help_text = "Commands: /clear, /reset, /help, /status"
+            help_text = I18N.t("cmd_help_text")
             self.add_system_message(help_text)
         elif cmd == "status":
             self.update_server_status()
         else:
-            self.add_system_message(f"Unknown command: {cmd}")
+            self.add_system_message(I18N.t("unknown_command").format(cmd))
 
     def on_voice_text(self, text, is_final):
         if is_final:
@@ -767,9 +818,9 @@ class MainWindow(QMainWindow):
             self.send_message()
 
     def on_wake_word(self):
-        self.add_system_message("Wake Word Detected! Listening for command...")
+        self.add_system_message(I18N.t("wake_word_detected"))
         self.voice_system.set_mode("active")
-        self.btn_voice.setText("ACTIVE")
+        self.btn_voice.setText(I18N.t("voice_active"))
         self.btn_voice.set_accent_color(THEME.get_color('accent_warn'))
         self.player.setMedia(QMediaContent(QUrl.fromLocalFile(os.path.abspath("assets/sounds/wake.wav")))) # Optional
         self.player.play()
@@ -777,7 +828,7 @@ class MainWindow(QMainWindow):
     def toggle_voice(self):
         if not hasattr(self, 'voice_widget_dialog'):
             self.voice_widget_dialog = QDialog(self)
-            self.voice_widget_dialog.setWindowTitle("VOICE CONTROL")
+            self.voice_widget_dialog.setWindowTitle(I18N.t("voice_control_title"))
             self.voice_widget_dialog.setWindowFlags(Qt.Tool)
             layout = QVBoxLayout(self.voice_widget_dialog)
             self.voice_ctrl = VoiceControlWidget()
@@ -794,18 +845,18 @@ class MainWindow(QMainWindow):
         # Start/Stop
         if not self.voice_system.running:
             self.voice_system.start()
-            self.btn_voice.setText("LISTENING")
+            self.btn_voice.setText(I18N.t("voice_listening"))
             self.btn_voice.set_accent_color(THEME.get_color('accent_warn'))
         else:
             self.voice_system.stop()
-            self.btn_voice.setText("VOICE")
+            self.btn_voice.setText(I18N.t("btn_voice"))
             self.btn_voice.set_accent_color(None)
 
     def toggle_continuous_mode(self, state):
         self.continuous_mode = (state == Qt.Checked)
         mode = "continuous" if self.continuous_mode else "wake_word"
         self.voice_system.set_mode(mode)
-        self.add_system_message(f"Voice Mode: {mode.upper()}")
+        self.add_system_message(I18N.t("voice_mode_status").format(mode.upper()))
 
     def update_vad_settings(self):
         if hasattr(self, 'voice_ctrl'):
@@ -825,23 +876,23 @@ class MainWindow(QMainWindow):
         self.multi_agent_widget.show()
         if hasattr(self, 'btn_scroll_bottom'):
             self.btn_scroll_bottom.hide()
-        self.add_system_message("Multi-Agent Collaboration Mode Initiated.")
+        self.add_system_message(I18N.t("multi_agent_init"))
 
     def hide_multi_agent_mode(self):
         self.multi_agent_widget.hide()
         self.content_widget.show()
         if hasattr(self, 'btn_scroll_bottom'):
             self.update_scroll_button()
-        self.add_system_message("Returning to Standard Command Interface.")
+        self.add_system_message(I18N.t("multi_agent_exit"))
 
     def toggle_chat_multi_mode(self):
         if self.multi_agent_widget.isVisible():
             self.hide_multi_agent_mode()
-            self.btn_chat_multi.setText("CHAT-MULTI")
+            self.btn_chat_multi.setText(I18N.t("chat_multi_btn"))
             self.btn_chat_multi.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: 1px solid {THEME.get_color('accent_dim')}; padding: 0 12px; border-radius: 16px;")
         else:
             self.show_multi_agent_mode()
-            self.btn_chat_multi.setText("MULTI-ACTIVE")
+            self.btn_chat_multi.setText(I18N.t("chat_multi_active"))
             self.btn_chat_multi.setStyleSheet(f"background: {THEME.hex_to_rgba(THEME.get_color('accent'), 0.15)}; color: {THEME.get_color('accent')}; border: 1px solid {THEME.get_color('accent')}; padding: 0 12px; border-radius: 16px;")
 
     def apply_settings(self):
@@ -855,14 +906,14 @@ class MainWindow(QMainWindow):
         # speed = float(self.settings.value("animation_speed", 1.0))
         # THEME.set_animation_speed(speed)
         
-        self.add_system_message("System configuration updated.")
+        self.add_system_message(I18N.t("system_config_updated"))
 
     def manage_memory(self):
-        self.add_system_message("Memory management interface accessed.")
+        self.add_system_message(I18N.t("memory_management_accessed"))
 
     def clear_memory(self):
         self.worker_mem = Worker(self.client.clear_memory)
-        self.worker_mem.finished.connect(lambda r: self.add_system_message("Memory purged."))
+        self.worker_mem.finished.connect(lambda r: self.add_system_message(I18N.t("memory_purged")))
         self.worker_mem.start()
 
     def on_media_state_changed(self, state):
@@ -915,7 +966,7 @@ class MainWindow(QMainWindow):
         if "error" in result:
             new_status = "OFFLINE"
             if old_server_status != new_status:
-                self.add_system_message(f"Status Change: UPLINK -> {new_status}")
+                self.add_system_message(I18N.t("status_change").format(new_status))
                 self.status_server.set_status("offline")
             self.status_llm.set_status("unknown")
             self.status_tts.set_status("unknown")
@@ -923,7 +974,7 @@ class MainWindow(QMainWindow):
 
         new_status = "ONLINE"
         if old_server_status != new_status:
-            self.add_system_message(f"Status Change: UPLINK -> {new_status}")
+            self.add_system_message(I18N.t("status_change").format(new_status))
             self.status_server.set_status("online")
         
         llm = data.get("llm", {})
@@ -939,7 +990,7 @@ class MainWindow(QMainWindow):
             self.status_tts.set_status("offline", tts.get("message"))
             
     def change_avatar(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Avatar", "", "Images (*.png *.jpg)")
+        path, _ = QFileDialog.getOpenFileName(self, I18N.t("select_avatar"), "", "Images (*.png *.jpg)")
         if path:
             self.custom_avatar_path = path
             self.settings.setValue("avatar_path", path)
@@ -960,38 +1011,38 @@ class MainWindow(QMainWindow):
             self.player.play()
 
     def attach_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Attachment", "", "All Files (*)")
+        path, _ = QFileDialog.getOpenFileName(self, I18N.t("select_attachment"), "", "All Files (*)")
         if path:
-            self.input_box.append(f"[ATTACHMENT: {os.path.basename(path)}]")
+            self.input_box.append(I18N.t("attachment_tag").format(os.path.basename(path)))
 
     def toggle_enter_behavior(self, state):
         self.input_box.set_send_on_enter(self.chk_enter_send.isChecked())
 
     def toggle_net_search(self, checked):
         if checked:
-            self.btn_search.setText("NET: ON")
+            self.btn_search.setText(I18N.t("btn_net_on"))
             self.btn_search.set_accent_color(THEME.get_color('success'))
         else:
-            self.btn_search.setText("NET: OFF")
+            self.btn_search.setText(I18N.t("btn_net_off"))
             self.btn_search.set_accent_color(None)
 
     def toggle_tts(self, checked):
         self.auto_tts_enabled = checked
         if checked:
-            self.btn_tts.setText("TTS: ON")
+            self.btn_tts.setText(I18N.t("btn_tts_on"))
             self.btn_tts.set_accent_color(THEME.get_color('success'))
         else:
-            self.btn_tts.setText("TTS: OFF")
+            self.btn_tts.setText(I18N.t("btn_tts_off"))
             self.btn_tts.set_accent_color(None)
 
     def clear_memory_confirm(self):
         msg = QMessageBox(self)
-        msg.setWindowTitle("CONFIRM PURGE")
-        msg.setText("Are you sure you want to clear memory?")
-        msg.setInformativeText("This action cannot be undone.")
+        msg.setWindowTitle(I18N.t("confirm_purge_title"))
+        msg.setText(I18N.t("confirm_purge_text"))
+        msg.setInformativeText(I18N.t("confirm_purge_info"))
         msg.setIcon(QMessageBox.Warning)
-        btn_keep = msg.addButton("Clear Chat Only", QMessageBox.ActionRole)
-        btn_all = msg.addButton("Clear All Memory", QMessageBox.ActionRole)
+        btn_keep = msg.addButton(I18N.t("btn_clear_chat_only"), QMessageBox.ActionRole)
+        btn_all = msg.addButton(I18N.t("btn_clear_all_memory"), QMessageBox.ActionRole)
         btn_cancel = msg.addButton(QMessageBox.Cancel)
         msg.exec_()
         if msg.clickedButton() == btn_all:
@@ -1000,7 +1051,7 @@ class MainWindow(QMainWindow):
             self.clear_chat_visuals()
         elif msg.clickedButton() == btn_keep:
             self.clear_chat_visuals()
-            self.add_system_message("Visual logs cleared. Memory retained.")
+            self.add_system_message(I18N.t("visual_logs_cleared_memory_retained"))
 
     def clear_chat_visuals(self):
         while self.chat_layout.count():

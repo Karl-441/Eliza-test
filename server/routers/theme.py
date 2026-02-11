@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any
+from server.core.i18n import I18N
 
 router = APIRouter(prefix="/api/v1/theme", tags=["theme"])
 
@@ -67,7 +68,10 @@ DEFAULT_THEME = {
 @router.get("/config", response_model=ThemeConfig)
 async def get_theme_config():
     """Get the current active theme configuration."""
-    return DEFAULT_THEME
+    # Return copy with localized name
+    theme = DEFAULT_THEME.copy()
+    theme["name"] = I18N.t("theme_name_default")
+    return theme
 
 @router.get("/checksum")
 async def get_theme_checksum():

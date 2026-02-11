@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query
 from typing import Optional
 from server.core.search import search_engine
 from server.core.monitor import audit_logger
+from server.core.i18n import I18N
 
 router = APIRouter(tags=["Search"])
 
@@ -12,7 +13,8 @@ async def generic_search(q: str = Query(..., min_length=1), max_results: int = Q
 
 @router.get("/search/weather")
 async def weather_today(city: Optional[str] = Query(None)):
-    q = f"{city} 天气" if city else "天气"
+    suffix = I18N.t("search_weather_suffix")
+    q = f"{city} {suffix}" if city else suffix
     data = search_engine._weather_today(q)
     return data
 

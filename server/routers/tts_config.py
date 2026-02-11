@@ -10,6 +10,7 @@ from server.core.tts_manager import tts_manager, TTSModelConfig
 from server.core.audio import audio_manager
 from server.core.monitor import audit_logger
 from server.core.users import user_manager
+from server.core.i18n import I18N
 
 router = APIRouter(tags=["TTS Configuration"])
 
@@ -42,7 +43,9 @@ class UpdateTTSRequest(BaseModel):
     status: Optional[str] = None
 
 class PreviewTTSRequest(BaseModel):
-    text: str = "This is a preview of the voice synthesis system."
+    text: str = "" # Default set in init or handled via default factory if needed, but Pydantic default is static.
+    # We can't use I18N.t() directly in class definition easily as it might run before config load.
+    # So we'll handle empty text in the endpoint.
     language: str = "en"
     speed: int = 100
     pitch: int = 0
@@ -69,7 +72,7 @@ async def list_models(user: dict = Depends(get_current_admin)):
 async def get_preferences(user: dict = Depends(get_current_user)):
     u = user_manager.users.get(user["user"])
     if not u:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=I18N.t("error_user_not_found"))
     return u.tts_preferences
 
 @router.put("/preferences")
@@ -83,7 +86,7 @@ async def update_preferences(prefs: TTSPreferences, user: dict = Depends(get_cur
         pass
     
     if not user_manager.update_tts_preferences(user["user"], prefs.dict()):
-        raise HTTPException(status_code=500, detail="Failed to update preferences")
+        raise HTTPException(status_code=500, detail=I18N.t("error_update_prefs_failed"))
     
     audit_logger.log("TTS_PREF_UPDATE", "User updated TTS preferences", user["user"])
     return {"status": "success"}
@@ -92,7 +95,7 @@ async def update_preferences(prefs: TTSPreferences, user: dict = Depends(get_cur
 async def create_model(data: CreateTTSRequest, user: dict = Depends(get_current_admin)):
     # Basic validation
     if len(data.name) > 32:
-        raise HTTPException(status_code=400, detail="Name too long")
+        raise HTTPException(status_code=400, detail=I18N.t("error_name_too_long"))
     
     model = tts_manager.create_model(data.dict())
     audit_logger.log("TTS_MODEL_CREATE", f"Created model {model.name}", user["user"])
@@ -103,7 +106,7 @@ async def update_model(model_id: str, data: UpdateTTSRequest, user: dict = Depen
     updates = {k: v for k, v in data.dict().items() if v is not None}
     model = tts_manager.update_model(model_id, updates)
     if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
+        raise HTTPException(status_code=404, detail=I18N.t("error_model_not_found"))
     
     audit_logger.log("TTS_MODEL_UPDATE", f"Updated model {model.name}", user["user"])
     return model
@@ -111,7 +114,7 @@ async def update_model(model_id: str, data: UpdateTTSRequest, user: dict = Depen
 @router.delete("/models/{model_id}")
 async def delete_model(model_id: str, user: dict = Depends(get_current_admin)):
     if not tts_manager.delete_model(model_id):
-        raise HTTPException(status_code=404, detail="Model not found")
+        raise HTTPException(status_code=404, detail=I18N.t("error_model_not_found"))
     audit_logger.log("TTS_MODEL_DELETE", f"Deleted model {model_id}", user["user"])
     return {"status": "success"}
 
@@ -138,8 +141,10 @@ async def preview_tts(data: PreviewTTSRequest, user: dict = Depends(get_current_
     elif data.type == "male":
         voice_id = "male_01"
         
+    text_to_speak = data.text if data.text else I18N.t("preview_tts_text")
+
     success = audio_manager.text_to_speech(
-        text=data.text,
+        text=text_to_speak,
         output_path=output_path,
         speed=speed_float,
         volume=volume_float,
@@ -197,6 +202,6 @@ async def synthesize(data: SynthesizeRequest, user: dict = Depends(get_current_u
         voice_id=data.voice_id
     )
     if not ok:
-        raise HTTPException(status_code=500, detail="Synthesize failed")
+        raise HTTPException(status_code=500, detail=I18N.t("error_synth_failed"))
     audit_logger.log("TTS_SYNTH", f"User synthesized audio via {data.voice_id}", user["user"])
     return {"audio_url": f"/static/temp/{filename}"}

@@ -4,6 +4,7 @@ from server.routers.dashboard import get_current_user
 from server.core.orchestrator import orchestrate
 from server.core.framework.bus import message_bus
 from server.core.framework.events import Event
+from server.core.i18n import I18N
 import uuid
 
 router = APIRouter()
@@ -49,7 +50,7 @@ async def trigger_orchestration(project_id: str, payload: dict = Body(...), user
     message = payload.get("message", "")
     user_id = user.get("user", "unknown")
     if not message:
-        return {"error": "message is required"}
+        return {"error": I18N.t("proj_msg_required")}
     
     # Run orchestration
     result = await orchestrate(project_id, message, user_id)
@@ -79,29 +80,16 @@ def get_workflow_state(project_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/{project_id}/control")
 async def control_workflow(project_id: str, payload: dict = Body(...), user: dict = Depends(get_current_user)):
-    action = payload.get("action") # pause, resume
-    if action not in ["pause", "resume"]:
-        return {"error": "Invalid action"}
+    action = payload.get("action") # pause, resume, approve, reject
+    message = payload.get("message", "") # For reject reason or approve comment
     
-    # Send event to orchestrator
-    # Note: In a real system we should target the specific workflow ID.
-    # For now we broadcast to the orchestrator topic, assuming the orchestrator checks project_id?
-    # Actually, my OrchestratorAgent implementation listens to "orchestration.control" but doesn't check project_id in process_message.
-    # I should fix OrchestratorAgent to check project_id if I use broadcast.
-    # OR, better: OrchestratorAgent subscribes to "orchestrator.{project_id}"?
-    # Currently it subscribes to "orchestrator".
-    
-    # Let's use the 'orchestrator' topic and rely on the agent to filter? 
-    # My current implementation of process_message for orchestration.control DOES NOT check project_id.
-    # I should update OrchestratorAgent first to be safe, or just send to all (not ideal).
-    
-    # Let's send to "orchestrator" topic and add project_id to data.
-    # But wait, I need to update OrchestratorAgent to check project_id.
+    if action not in ["pause", "resume", "approve", "reject"]:
+        return {"error": I18N.t("proj_invalid_action")}
     
     await message_bus.publish(Event(
         topic="orchestrator",
         type="orchestration.control",
-        data={"action": action, "project_id": project_id},
+        data={"action": action, "project_id": project_id, "message": message},
         correlation_id=str(uuid.uuid4())
     ))
     

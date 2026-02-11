@@ -9,6 +9,7 @@ from .llm import llm_engine
 from .monitor import monitor_hub
 from .users import user_manager
 from .tools import get_tool_descriptions, execute_tool
+from ..core.i18n import I18N
 from server.core.framework.bus import message_bus
 from server.core.framework.events import Event
 from server.core.framework.agents import GenericLLMAgent, OrchestratorAgent

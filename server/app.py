@@ -11,6 +11,7 @@ from server.middleware.rate_limit import RateLimitMiddleware
 from server.middleware.tracker import ClientTrackingMiddleware
 from server.routers import system, chat, audio, profile, config, dashboard as dashboard_router, tts_config, theme, search as search_router, vision_api, files, projects
 from server.core.database import engine, Base
+from server.core.i18n import I18N
 
 # Ensure DB tables exist
 Base.metadata.create_all(bind=engine)
@@ -61,21 +62,21 @@ except Exception as e:
 async def dashboard():
     dashboard_path = STATIC_DIR / "dashboard.html"
     if not dashboard_path.exists():
-        return {"error": "Dashboard file not found"}
+        return {"error": I18N.t("dashboard_not_found")}
     return FileResponse(dashboard_path)
 
 @app.get("/login", tags=["System"])
 async def login_page():
     login_path = STATIC_DIR / "login.html"
     if not login_path.exists():
-        return {"error": "Login file not found"}
+        return {"error": I18N.t("login_not_found")}
     return FileResponse(login_path)
 
 @app.get("/register", tags=["System"])
 async def register_page():
     reg_path = STATIC_DIR / "register.html"
     if not reg_path.exists():
-        return {"error": "Register file not found"}
+        return {"error": I18N.t("register_not_found")}
     return FileResponse(reg_path)
 
 from fastapi import Depends

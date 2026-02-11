@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt5.QtCore import Qt, QTimer, QRect
 from PyQt5.QtGui import QPainter, QColor, QBrush, QPen
 from ..framework.theme import THEME
+from ..framework.i18n import I18N
 
 class WaveformVisualizer(QWidget):
     def __init__(self, parent=None):
@@ -46,6 +47,9 @@ class VoiceControlWidget(QWidget):
         self.setStyleSheet(THEME.get_qss())
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(5, 5, 5, 5)
+
+        # Connect language change signal
+        I18N.language_changed.connect(self.retranslate_ui)
         
         self.slider_style = f"""
             QSlider::groove:horizontal {{
@@ -94,7 +98,7 @@ class VoiceControlWidget(QWidget):
         """
         
         # --- ASR / VAD Section ---
-        self.group_vad = QGroupBox("ASR / VAD Control")
+        self.group_vad = QGroupBox(I18N.t("voice_group_vad"))
         self.group_vad.setStyleSheet(f"""
             QGroupBox {{ 
                 color: {THEME.get_color('accent')}; 
@@ -115,18 +119,18 @@ class VoiceControlWidget(QWidget):
         vad_layout.addWidget(self.visualizer)
         
         # VAD Toggle
-        self.chk_vad = QCheckBox("Enable Voice Activity Detection (VAD)")
+        self.chk_vad = QCheckBox(I18N.t("voice_chk_vad"))
         self.chk_vad.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
         vad_layout.addWidget(self.chk_vad)
 
         # Continuous Mode Toggle
-        self.chk_continuous = QCheckBox("Continuous Mode (Wake Word Simulation)")
+        self.chk_continuous = QCheckBox(I18N.t("voice_chk_continuous"))
         self.chk_continuous.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
         vad_layout.addWidget(self.chk_continuous)
         
         # Threshold Slider
         thresh_layout = QHBoxLayout()
-        self.lbl_thresh = QLabel("Threshold: 0.01")
+        self.lbl_thresh = QLabel(f"{I18N.t('voice_lbl_threshold')} 0.01")
         self.lbl_thresh.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
         thresh_layout.addWidget(self.lbl_thresh)
         
@@ -141,7 +145,7 @@ class VoiceControlWidget(QWidget):
         self.layout.addWidget(self.group_vad)
         
         # --- TTS Section ---
-        self.group_tts = QGroupBox("TTS Control")
+        self.group_tts = QGroupBox(I18N.t("voice_group_tts"))
         self.group_tts.setStyleSheet(f"""
             QGroupBox {{ 
                 color: {THEME.get_color('accent')}; 
@@ -159,9 +163,9 @@ class VoiceControlWidget(QWidget):
         
         # Voice Selection
         voice_layout = QHBoxLayout()
-        voice_label = QLabel("Voice:")
-        voice_label.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
-        voice_layout.addWidget(voice_label)
+        self.lbl_voice_label = QLabel(I18N.t("voice_lbl_voice"))
+        self.lbl_voice_label.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
+        voice_layout.addWidget(self.lbl_voice_label)
         
         self.combo_voice = QComboBox()
         self.combo_voice.setStyleSheet(self.combo_style)
@@ -170,7 +174,7 @@ class VoiceControlWidget(QWidget):
 
         # Speed
         speed_layout = QHBoxLayout()
-        self.lbl_speed = QLabel("Speed: 1.0x")
+        self.lbl_speed = QLabel(f"{I18N.t('voice_lbl_speed')} 1.0x")
         self.lbl_speed.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
         speed_layout.addWidget(self.lbl_speed)
         
@@ -184,7 +188,7 @@ class VoiceControlWidget(QWidget):
         
         # Volume
         vol_layout = QHBoxLayout()
-        self.lbl_vol = QLabel("Volume: 1.0x")
+        self.lbl_vol = QLabel(f"{I18N.t('voice_lbl_volume')} 1.0x")
         self.lbl_vol.setStyleSheet(f"color: {THEME.get_color('text_primary')};")
         vol_layout.addWidget(self.lbl_vol)
         
@@ -201,10 +205,23 @@ class VoiceControlWidget(QWidget):
         self.layout.addStretch()
 
     def update_thresh_label(self, val):
-        self.lbl_thresh.setText(f"Threshold: {val/100:.2f}")
+        self.lbl_thresh.setText(f"{I18N.t('voice_lbl_threshold')} {val/100:.2f}")
 
     def update_speed_label(self, val):
-        self.lbl_speed.setText(f"Speed: {val/10:.1f}x")
+        self.lbl_speed.setText(f"{I18N.t('voice_lbl_speed')} {val/10:.1f}x")
 
     def update_vol_label(self, val):
-        self.lbl_vol.setText(f"Volume: {val/10:.1f}x")
+        self.lbl_vol.setText(f"{I18N.t('voice_lbl_volume')} {val/10:.1f}x")
+
+    def retranslate_ui(self):
+        self.group_vad.setTitle(I18N.t("voice_group_vad"))
+        self.chk_vad.setText(I18N.t("voice_chk_vad"))
+        self.chk_continuous.setText(I18N.t("voice_chk_continuous"))
+        self.group_tts.setTitle(I18N.t("voice_group_tts"))
+        if hasattr(self, 'lbl_voice_label'):
+            self.lbl_voice_label.setText(I18N.t("voice_lbl_voice"))
+        
+        # Update labels with current values
+        self.update_thresh_label(self.slider_thresh.value())
+        self.update_speed_label(self.slider_speed.value())
+        self.update_vol_label(self.slider_vol.value())

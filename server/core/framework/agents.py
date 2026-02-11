@@ -12,6 +12,7 @@ from server.core.tools import get_tool_descriptions, execute_tool
 from server.core.framework.planning import decompose_tasks
 from server.core.database import SessionLocal
 from server.core.models import WorkflowState
+from server.core.i18n import I18N
 
 class GenericLLMAgent(BaseAgent):
     def __init__(self, agent_id: str, role: str, model_name: str, system_prompt: str, project_id: str):
@@ -48,23 +49,17 @@ class GenericLLMAgent(BaseAgent):
             # Build Prompt
             tool_descriptions = get_tool_descriptions()
             full_prompt = f"""
-你现在的身份是：{self.role}
-任务：{task_content}
+{I18N.t('agent_identity').format(role=self.role)}
+{I18N.t('agent_task').format(content=task_content)}
 
-【上下文】：
+{I18N.t('agent_context')}
 {context}
 
-【可用工具】：
+{I18N.t('agent_tools')}
 {tool_descriptions}
 
-【指令】：
-请完成上述任务。如果需要生成文件，请使用工具。
-如果使用工具，请仅返回 JSON 格式的工具调用指令，格式如下：
-{{
-    "tool": "tool_name",
-    "params": {{ "arg1": "value1" }}
-}}
-如果不需要工具，请直接返回你的工作成果。
+{I18N.t('agent_instruction')}
+{I18N.t('agent_instruction_detail')}
 """
             # Call LLM
             # Note: In real system, we should pass model_name to llm_engine
@@ -191,6 +186,36 @@ class OrchestratorAgent(BaseAgent):
                 await self.pause_workflow()
             elif action == "resume":
                 await self.resume_workflow()
+            elif action == "approve":
+                await self.handle_approval(True, event.data.get("message"))
+            elif action == "reject":
+                await self.handle_approval(False, event.data.get("message"))
+
+    async def handle_approval(self, approved: bool, message: str = None):
+        if self.status != "waiting_for_approval":
+            return
+
+        if approved:
+            self.status = "running"
+            await self.send_event("monitor", "orchestration.status", {
+                "type": "orchestration",
+                "status": "approved",
+                "project_id": self.project_id,
+                "message": "人工审批通过，继续执行。",
+                "api_key": self.api_key
+            }, correlation_id=self.correlation_id)
+            await self._save_state()
+            await self.dispatch_next_task()
+        else:
+            self.status = "failed" # Or cancelled
+            await self.send_event("monitor", "orchestration.status", {
+                "type": "orchestration",
+                "status": "rejected",
+                "project_id": self.project_id,
+                "message": f"人工审批驳回: {message or '无理由'}",
+                "api_key": self.api_key
+            }, correlation_id=self.correlation_id)
+            await self._save_state()
 
     async def process_task(self, event: Event):
         pass
@@ -228,7 +253,31 @@ class OrchestratorAgent(BaseAgent):
             "api_key": self.api_key
         }, correlation_id=self.correlation_id)
 
-        await self.dispatch_next_task()
+        # Request Approval for the Plan
+        await self.ask_for_approval("plan_review", {
+            "title": I18N.t("task_plan_approval_title"),
+            "description": I18N.t("task_plan_approval_desc"),
+            "data": self.tasks
+        })
+
+    async def ask_for_approval(self, approval_id: str, context: dict):
+        self.status = "waiting_for_approval"
+        self.approval_context = {
+            "id": approval_id,
+            "context": context,
+            "timestamp": time.time()
+        }
+        await self._save_state()
+        
+        await self.send_event("monitor", "orchestration.status", {
+            "type": "orchestration",
+            "status": "waiting_for_approval",
+            "project_id": self.project_id,
+            "approval_id": approval_id,
+            "approval_context": context,
+            "message": I18N.t("waiting_approval"),
+            "api_key": self.api_key
+        }, correlation_id=self.correlation_id)
 
     async def dispatch_next_task(self):
         if self.status != "running":

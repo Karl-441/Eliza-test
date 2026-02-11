@@ -3,19 +3,20 @@ import re
 import asyncio
 from typing import List, Optional
 from server.core.llm import llm_engine
+from server.core.i18n import I18N
 
-PLANNING_PROMPT_TEMPLATE = """
-作为高级项目经理，请将以下用户需求拆解为 3-5 个具体的执行步骤。
-用户需求：{message}
+def get_planning_prompt(message: str) -> str:
+    return f"""{I18N.t("planning_prompt_intro")}
+{I18N.t("planning_prompt_req").format(message=message)}
 
-请仅返回一个 JSON 数组，格式如下，不要包含 markdown 代码块标记：
+{I18N.t("planning_prompt_format")}
 [
     {{
         "id": "task_1",
-        "title": "步骤名称",
-        "content": "详细的任务描述",
-        "target_role": "推荐的角色名称",
-        "dependencies": [] // 依赖的任务ID列表，例如 ["task_0"]
+        "title": "{I18N.t("task_1_title")}",
+        "content": "{I18N.t("task_1_content").format(message="...")}",
+        "target_role": "Product Manager",
+        "dependencies": []
     }}
 ]
 """
@@ -38,7 +39,7 @@ async def decompose_tasks(message: str) -> List[dict]:
     Dynamically decompose tasks using LLM.
     Fallback to hardcoded steps if LLM fails.
     """
-    prompt = PLANNING_PROMPT_TEMPLATE.format(message=message)
+    prompt = get_planning_prompt(message)
     try:
         response = await asyncio.to_thread(llm_engine.generate_response, prompt)
         steps = parse_json_from_llm(response)
@@ -49,10 +50,10 @@ async def decompose_tasks(message: str) -> List[dict]:
     
     # Fallback
     return [
-        {"id": "task_1", "title": "需求理解", "content": f"分析用户需求：{message}", "target_role": "产品经理", "dependencies": []},
-        {"id": "task_2", "title": "方案设计", "content": "提出可行的技术与创意方案", "target_role": "架构师", "dependencies": ["task_1"]},
-        {"id": "task_3", "title": "分配执行", "content": "将任务分配到对应角色", "target_role": "项目经理", "dependencies": ["task_2"]},
-        {"id": "task_4", "title": "整合评审", "content": "收集输出并生成综合报告", "target_role": "测试工程师", "dependencies": ["task_3"]}
+        {"id": "task_1", "title": I18N.t("task_1_title"), "content": I18N.t("task_1_content").format(message=message), "target_role": "Product Manager", "dependencies": []},
+        {"id": "task_2", "title": I18N.t("task_2_title"), "content": I18N.t("task_2_content"), "target_role": "Architect", "dependencies": ["task_1"]},
+        {"id": "task_3", "title": I18N.t("task_3_title"), "content": I18N.t("task_3_content"), "target_role": "Project Manager", "dependencies": ["task_2"]},
+        {"id": "task_4", "title": I18N.t("task_4_title"), "content": I18N.t("task_4_content"), "target_role": "QA Engineer", "dependencies": ["task_3"]}
     ]
 
 def match_agent(agents: List[dict], target_role: str) -> dict:

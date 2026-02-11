@@ -12,6 +12,7 @@ from server.core.model_manager import model_manager
 from server.core.monitor import monitor, client_manager, audit_logger, monitor_hub
 from server.core.llm import llm_engine
 from server.middleware.auth import verify_api_key
+from server.core.i18n import I18N
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -58,12 +59,12 @@ def get_current_user(request: Request):
                     "created_at": str(datetime.datetime.now())
                 }
     
-    raise HTTPException(status_code=401, detail="Not authenticated")
+    raise HTTPException(status_code=401, detail=I18N.t("auth_not_authenticated"))
 
 def get_current_admin(request: Request):
     user = get_current_user(request)
     if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Requires admin privileges")
+        raise HTTPException(status_code=403, detail=I18N.t("auth_requires_admin"))
     return user
 
 @router.post("/login")
@@ -71,7 +72,7 @@ async def login(data: LoginRequest, response: Response):
     user = user_manager.authenticate(data.username, data.password)
     if not user:
         audit_logger.log("LOGIN_FAILED", f"Failed login attempt for {data.username}", "unknown")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail=I18N.t("auth_invalid_creds"))
         
     session_id = secrets.token_hex(16)
     sessions[session_id] = {

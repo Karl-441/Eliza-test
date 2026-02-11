@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSizePoli
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QPen, QFont, QTextCursor
 from ..framework.theme import THEME
+from ..framework.i18n import I18N
 from .atoms import TacticalButton
 
 class TacticalFrame(QFrame):
@@ -132,7 +133,7 @@ class StatusIndicator(QWidget):
         self.label.setFont(THEME.get_font("code"))
         self.label.setStyleSheet(f"color: {THEME.get_color('text_secondary')}; font-weight: bold;")
         
-        self.value_label = QLabel("OFFLINE")
+        self.value_label = QLabel(I18N.t("status_offline"))
         self.value_label.setFont(THEME.get_font("code"))
         self.value_label.setStyleSheet(f"color: {THEME.get_color('text_secondary')}; font-weight: bold;")
         
@@ -142,15 +143,17 @@ class StatusIndicator(QWidget):
         self.layout.addWidget(self.value_label)
         
     def set_status(self, status, message=""):
-        status = status.upper()
-        self.value_label.setText(status)
+        status_key = status.upper()
+        # Translate for display
+        display_status = I18N.t(f"status_{status.lower()}", status_key)
+        self.value_label.setText(display_status)
         
         color = THEME.get_color("text_secondary")
-        if status == "ONLINE":
+        if status_key == "ONLINE":
             color = THEME.get_color("success")
-        elif status == "OFFLINE":
+        elif status_key == "OFFLINE":
             color = THEME.get_color("error")
-        elif status == "UNKNOWN":
+        elif status_key == "UNKNOWN":
             color = THEME.get_color("warning")
             
         self.dot.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
@@ -186,7 +189,9 @@ class LogViewer(QPlainTextEdit):
         color = THEME.get_color('text_secondary')
         if entry['level'] == "WARN": color = THEME.get_color('accent')
         if entry['level'] == "ERROR": color = THEME.get_color('warning')
-        html = f'<div style="margin-bottom: 2px;"><span style="color:{THEME.get_color("text_secondary")};">[{entry["timestamp"]}]</span> <span style="color:{color}; font-weight:bold;">[{entry["level"]}]</span> {entry["message"]}</div>'
+        
+        level_display = I18N.t(f"log_level_{entry['level'].lower()}", entry['level'])
+        html = f'<div style="margin-bottom: 2px;"><span style="color:{THEME.get_color("text_secondary")};">[{entry["timestamp"]}]</span> <span style="color:{color}; font-weight:bold;">[{level_display}]</span> {entry["message"]}</div>'
         self.appendHtml(html)
         self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
     def set_filter(self, level):
@@ -318,9 +323,9 @@ class ChatInput(QTextEdit):
         painter = QPainter(self.viewport())
         painter.setRenderHint(QPainter.Antialiasing)
         if self.send_on_enter:
-            hint_text = "↵ Send | Shift+↵ Line"
+            hint_text = I18N.t("input_hint_send")
         else:
-            hint_text = "Ctrl+↵ Send | ↵ Line"
+            hint_text = I18N.t("input_hint_send_ctrl")
         font = THEME.get_font("small")
         painter.setFont(font)
         metrics = painter.fontMetrics()

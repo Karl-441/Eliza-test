@@ -6,6 +6,7 @@ except ImportError:
     WhisperModel = None
 
 from .config import settings
+from .i18n import I18N
 
 class AudioManager:
     def __init__(self):
@@ -25,24 +26,24 @@ class AudioManager:
     def transcribe(self, audio_path: str) -> str:
         self.load_asr()
         if not self.asr_model:
-            return "Error: ASR not available."
+            return I18N.t("asr_not_available")
         
         try:
             segments, _ = self.asr_model.transcribe(audio_path, beam_size=5)
             text = "".join([segment.text for segment in segments])
             return text
         except Exception as e:
-            return f"Error transcribing: {e}"
+            return I18N.t("transcribe_error").format(error=e)
 
     def check_tts_health(self) -> dict:
         if not settings.enable_audio:
-            return {"status": False, "message": "Audio disabled"}
+            return {"status": False, "message": I18N.t("audio_disabled")}
         try:
             # Check connectivity to the TTS API
             response = requests.get(settings.tts_api_url, timeout=2)
             if response.status_code in [200, 404, 405]: # 404/405 means server is reachable
-                return {"status": True, "message": "Online"}
-            return {"status": False, "message": f"HTTP {response.status_code}"}
+                return {"status": True, "message": I18N.t("tts_online")}
+            return {"status": False, "message": I18N.t("tts_http_error").format(code=response.status_code)}
         except Exception as e:
             return {"status": False, "message": str(e)}
 

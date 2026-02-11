@@ -1,8 +1,12 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QTextEdit, QLineEdit, QComboBox, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QFileSystemModel, QTreeView, QListWidget, QListWidgetItem, QMessageBox)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QTextEdit, QLineEdit, QComboBox, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QFileSystemModel, QTreeView, QListWidget, QListWidgetItem, QMessageBox, QTabWidget)
 from PyQt5.QtCore import Qt, pyqtSignal, QDir
-from ..components import TacticalFrame, TacticalButton, ChatBubble
+from PyQt5.QtGui import QPainter, QColor, QPixmap, QIcon
+from ..components import TacticalFrame, TacticalButton, ChatBubble, TacticalToast
 from ..framework.theme import THEME
 from ..framework.websocket import WebSocketClient
+from ..framework.i18n import I18N
+from .dag_visualizer import DAGWidget
+from .task_detail_dialog import TaskDetailDialog
 import uuid
 import webbrowser
 
@@ -43,20 +47,57 @@ class MultiAgentWidget(QWidget):
         self.project_id = ""
         self.refresh_projects_tree()
         
+        I18N.language_changed.connect(self.retranslate_ui)
+        self.retranslate_ui()
+        
+    def retranslate_ui(self):
+        # Projects Panel
+        self.inp_project.setPlaceholderText(I18N.t("ma_new_project_name"))
+        self.btn_new_project.setText(I18N.t("ma_btn_new"))
+        self.combo_template.setItemText(0, I18N.t("ma_template_none"))
+        self.combo_template.setItemText(1, I18N.t("ma_template_sw"))
+        self.combo_template.setToolTip(I18N.t("ma_template_tooltip"))
+        
+        # Agent Bar
+        self.inp_role.setPlaceholderText(I18N.t("ma_agent_role"))
+        self.btn_new_agent.setText(I18N.t("ma_btn_add_agent"))
+        self.btn_init_team.setText(I18N.t("ma_btn_init_team"))
+        self.btn_init_team.setToolTip(I18N.t("ma_tooltip_init_team"))
+        
+        # Chat Panel
+        if hasattr(self, 'lbl_chat'): self.lbl_chat.setText(I18N.t("ma_lbl_group_chat"))
+        self.btn_latest.setText(I18N.t("ma_btn_latest"))
+        self.btn_back_chat.setText(I18N.t("ma_btn_back"))
+        self.btn_pause.setText(I18N.t("ma_btn_pause"))
+        self.btn_resume.setText(I18N.t("ma_btn_resume"))
+        self.btn_approve.setText(I18N.t("ma_btn_approve"))
+        self.btn_reject.setText(I18N.t("ma_btn_reject"))
+        self.inp_chat.setPlaceholderText(I18N.t("ma_input_placeholder"))
+        self.btn_send_chat.setText(I18N.t("ma_btn_send"))
+        
+        # Viewer Panel
+        if hasattr(self, 'tabs'):
+            self.tabs.setTabText(0, I18N.t("ma_tab_dag"))
+            self.tabs.setTabText(1, I18N.t("ma_tab_report"))
+        
+        # Files Panel
+        if hasattr(self, 'lbl_files'): self.lbl_files.setText(I18N.t("ma_lbl_cloud_files"))
+        self.btn_refresh_files.setText(I18N.t("ma_btn_refresh"))
+
     def setup_projects_panel(self):
         layout = QVBoxLayout(self.projects_panel)
         layout.setContentsMargins(0, 0, 0, 0)
         bar = QHBoxLayout()
         self.inp_project = QLineEdit()
-        self.inp_project.setPlaceholderText("新建项目名称")
+        self.inp_project.setPlaceholderText(I18N.t("ma_new_project_name"))
         
         # Template Selection
         self.combo_template = QComboBox()
-        self.combo_template.addItem("无模板", "")
-        self.combo_template.addItem("软件开发团队", "software_team")
-        self.combo_template.setToolTip("选择项目模板自动初始化团队")
+        self.combo_template.addItem(I18N.t("ma_template_none"), "")
+        self.combo_template.addItem(I18N.t("ma_template_sw"), "software_team")
+        self.combo_template.setToolTip(I18N.t("ma_template_tooltip"))
         
-        self.btn_new_project = TacticalButton("新建")
+        self.btn_new_project = TacticalButton(I18N.t("ma_btn_new"))
         self.btn_new_project.clicked.connect(self.create_project)
         bar.addWidget(self.inp_project)
         bar.addWidget(self.combo_template)
@@ -68,13 +109,13 @@ class MultiAgentWidget(QWidget):
         layout.addWidget(self.tree)
         self.agent_bar = QHBoxLayout()
         self.inp_role = QLineEdit()
-        self.inp_role.setPlaceholderText("智能体角色名")
+        self.inp_role.setPlaceholderText(I18N.t("ma_agent_role"))
         self.combo_model = QComboBox()
         self.combo_model.setEditable(True)
-        self.btn_new_agent = TacticalButton("加人")
+        self.btn_new_agent = TacticalButton(I18N.t("ma_btn_add_agent"))
         self.btn_new_agent.clicked.connect(self.create_agent)
-        self.btn_init_team = TacticalButton("一键组队")
-        self.btn_init_team.setToolTip("为当前项目自动创建标准开发团队")
+        self.btn_init_team = TacticalButton(I18N.t("ma_btn_init_team"))
+        self.btn_init_team.setToolTip(I18N.t("ma_tooltip_init_team"))
         self.btn_init_team.clicked.connect(self.init_team)
         self.agent_bar.addWidget(self.inp_role)
         self.agent_bar.addWidget(self.combo_model)
@@ -86,54 +127,188 @@ class MultiAgentWidget(QWidget):
     def setup_chat_panel(self):
         layout = QVBoxLayout(self.chat_panel)
         bar = QHBoxLayout()
-        lbl = QLabel("群聊")
-        lbl.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; font-size: 16px;")
-        self.btn_latest = TacticalButton("LATEST")
+        self.lbl_chat = QLabel(I18N.t("ma_lbl_group_chat"))
+        self.lbl_chat.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; font-size: 16px;")
+        self.btn_latest = TacticalButton(I18N.t("ma_btn_latest"))
         self.btn_latest.set_accent_color(THEME.get_color('accent'))
         self.btn_latest.clicked.connect(self.scroll_chat_bottom)
-        self.btn_back_chat = TacticalButton("返回")
+        self.btn_back_chat = TacticalButton(I18N.t("ma_btn_back"))
         self.btn_back_chat.clicked.connect(self.close_requested.emit)
-        bar.addWidget(lbl)
+        bar.addWidget(self.lbl_chat)
         bar.addStretch()
         bar.addWidget(self.btn_latest)
         bar.addWidget(self.btn_back_chat)
         layout.addLayout(bar)
+
+        # Control Bar
+        self.control_bar = QHBoxLayout()
+        self.btn_pause = TacticalButton(I18N.t("ma_btn_pause"))
+        self.btn_pause.set_accent_color(THEME.get_color('warning'))
+        self.btn_pause.clicked.connect(lambda: self.send_control("pause"))
+        
+        self.btn_resume = TacticalButton(I18N.t("ma_btn_resume"))
+        self.btn_resume.set_accent_color(THEME.get_color('success'))
+        self.btn_resume.clicked.connect(lambda: self.send_control("resume"))
+        
+        self.btn_approve = TacticalButton(I18N.t("ma_btn_approve"))
+        self.btn_approve.set_accent_color(THEME.get_color('success'))
+        self.btn_approve.clicked.connect(lambda: self.send_control("approve"))
+        self.btn_approve.hide()
+        
+        self.btn_reject = TacticalButton(I18N.t("ma_btn_reject"))
+        self.btn_reject.set_accent_color(THEME.get_color('error'))
+        self.btn_reject.clicked.connect(lambda: self.send_control("reject"))
+        self.btn_reject.hide()
+        
+        self.control_bar.addWidget(self.btn_pause)
+        self.control_bar.addWidget(self.btn_resume)
+        self.control_bar.addStretch()
+        self.control_bar.addWidget(self.btn_reject)
+        self.control_bar.addWidget(self.btn_approve)
+        layout.addLayout(self.control_bar)
+
         self.chat_history = QTextEdit()
         self.chat_history.setReadOnly(True)
         self.chat_history.setStyleSheet(f"QTextEdit {{ background-color: {THEME.hex_to_rgba(THEME.get_color('background_tertiary'), 0.5)}; color: {THEME.get_color('text_primary')}; border: 1px solid {THEME.get_color('border')}; font-family: {THEME.fonts['family_code']}; }}")
-        self.chat_history.setHtml(f"<div style='color:{THEME.get_color('text_secondary')}; text-align:center; margin-top:20px;'>请在左侧选择或新建项目以开始</div>")
+        self.chat_history.setHtml(f"<div style='color:{THEME.get_color('text_secondary')}; text-align:center; margin-top:20px;'>{I18N.t('ma_placeholder_chat')}</div>")
         layout.addWidget(self.chat_history)
         self.inp_chat = QLineEdit()
-        self.inp_chat.setPlaceholderText("输入消息")
-        self.btn_send_chat = TacticalButton("发送")
+        self.inp_chat.setPlaceholderText(I18N.t("ma_input_placeholder"))
+        self.btn_send_chat = TacticalButton(I18N.t("ma_btn_send"))
         self.btn_send_chat.clicked.connect(self.send_chat)
         h = QHBoxLayout()
         h.addWidget(self.inp_chat)
         h.addWidget(self.btn_send_chat)
         layout.addLayout(h)
+    def send_control(self, action):
+        if not self.project_id: return
+        res = self.client.control_workflow(self.project_id, action)
+        if res.get("status") == "command_sent":
+            TacticalToast.show_toast(self, I18N.t("ma_toast_cmd_sent").format(action), "info")
+            if action in ["approve", "reject"]:
+                self.btn_approve.hide()
+                self.btn_reject.hide()
+        else:
+            TacticalToast.show_toast(self, I18N.t("ma_toast_cmd_fail").format(res.get('error')), "error")
+
     def scroll_chat_bottom(self):
         self.chat_history.moveCursor(self.chat_history.textCursor().End)
         
     def setup_viewer_panel(self):
         layout = QVBoxLayout(self.viewer_panel)
-        lbl = QLabel("展示窗口")
-        lbl.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; font-size: 16px;")
-        layout.addWidget(lbl)
-        self.viewer = QPlainTextEdit()
-        self.viewer.setReadOnly(True)
-        self.viewer.setStyleSheet(f"QPlainTextEdit {{ background-color: {THEME.get_color('background_tertiary')}; color: {THEME.get_color('text_primary')}; border: 1px solid {THEME.get_color('border')}; font-family: {THEME.fonts['family_code']}; }}")
-        layout.addWidget(self.viewer)
+        layout.setContentsMargins(0,0,0,0)
+        
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet(f"""
+            QTabWidget::pane {{ border: 1px solid {THEME.get_color('border')}; }}
+            QTabBar::tab {{ background: {THEME.get_color('background_secondary')}; color: {THEME.get_color('text_secondary')}; padding: 8px 12px; }}
+            QTabBar::tab:selected {{ background: {THEME.get_color('background_tertiary')}; color: {THEME.get_color('accent')}; border-bottom: 2px solid {THEME.get_color('accent')}; }}
+        """)
+        
+        # Tab 1: DAG
+        self.dag_widget = DAGWidget()
+        self.dag_widget.btn_refresh.clicked.connect(self.refresh_workflow_view)
+        self.dag_widget.view.node_clicked.connect(self.show_task_detail)
+        self.tabs.addTab(self.dag_widget, I18N.t("ma_tab_dag"))
+        
+        # Tab 2: Report/Log
+        self.report_viewer = QPlainTextEdit()
+        self.report_viewer.setReadOnly(True)
+        self.report_viewer.setStyleSheet(f"background-color: {THEME.get_color('background_tertiary')}; color: {THEME.get_color('text_primary')}; border: none; font-family: {THEME.fonts['family_code']};")
+        self.tabs.addTab(self.report_viewer, I18N.t("ma_tab_report"))
+        
+        layout.addWidget(self.tabs)
+        
+    def refresh_workflow_view(self):
+        if not self.project_id: return
+        try:
+             import requests
+             url = f"{self.client.base_url}/api/v1/projects/{self.project_id}/workflow"
+             headers = self.client._get_headers()
+             res = requests.get(url, headers=headers)
+             if res.status_code == 200:
+                 data = res.json()
+                 tasks = data.get("tasks", [])
+                 self.dag_widget.view.update_graph(tasks)
+                 # Update agent status in tree based on tasks
+                 self.update_agent_status(tasks)
+        except Exception as e:
+             print(f"Workflow fetch error: {e}")
+
+    def show_task_detail(self, task_id):
+        # Find task data from DAG visualizer cache
+        tasks = self.dag_widget.view.tasks_data
+        task = next((t for t in tasks if t['id'] == task_id), None)
+        if task:
+            dialog = TaskDetailDialog(self, task)
+            dialog.exec_()
+
+    def get_status_icon(self, status):
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        color = THEME.get_color("text_secondary")
+        if status == "working":
+            color = THEME.get_color("accent")
+        elif status == "error":
+            color = THEME.get_color("error")
+        elif status == "online":
+            color = THEME.get_color("success")
+            
+        painter.setBrush(QColor(color))
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(3, 3, 10, 10)
+        painter.end()
+        return QIcon(pixmap)
+
+    def update_agent_status(self, tasks):
+        # Map roles to status
+        role_status = {}
+        for t in tasks:
+            role = t.get("role")
+            status = t.get("status")
+            if not role: continue
+            
+            if status == "in_progress":
+                role_status[role] = "working"
+            elif status == "error":
+                role_status[role] = "error"
+            elif status == "completed" and role_status.get(role) != "working":
+                 role_status[role] = "online"
+        
+        root = self.tree.invisibleRootItem()
+        for i in range(root.childCount()):
+            p_item = root.child(i)
+            p_data = p_item.data(0, Qt.UserRole) # ("project", p_id)
+            if not p_data or p_data[1] != self.project_id:
+                continue
+            
+            # Found current project
+            for j in range(p_item.childCount()):
+                a_item = p_item.child(j)
+                # data is ("agent", p_id, role_name)
+                a_data = a_item.data(0, Qt.UserRole)
+                if not a_data: continue
+                
+                role = a_data[2]
+                status = role_status.get(role, "idle")
+                a_item.setIcon(0, self.get_status_icon(status))
+                
+                # Update tooltip
+                a_item.setToolTip(0, f"Status: {status.upper()}")
 
     def setup_files_panel(self):
         layout = QVBoxLayout(self.files_panel)
-        lbl = QLabel("云端文件")
-        lbl.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; font-size: 16px;")
+        self.lbl_files = QLabel(I18N.t("ma_lbl_cloud_files"))
+        self.lbl_files.setStyleSheet(f"color: {THEME.get_color('accent')}; font-weight: bold; font-size: 16px;")
         
-        self.btn_refresh_files = TacticalButton("刷新")
+        self.btn_refresh_files = TacticalButton(I18N.t("ma_btn_refresh"))
         self.btn_refresh_files.clicked.connect(self.refresh_files)
         
         h_files = QHBoxLayout()
-        h_files.addWidget(lbl)
+        h_files.addWidget(self.lbl_files)
         h_files.addWidget(self.btn_refresh_files)
         layout.addLayout(h_files)
         
@@ -161,15 +336,16 @@ class MultiAgentWidget(QWidget):
             webbrowser.open(full_url)
 
     def create_project(self):
-        name = self.inp_project.text().strip() or "新项目"
+        name = self.inp_project.text().strip() or I18N.t("ma_default_project")
         template = self.combo_template.currentData()
         result = self.client.create_project(name, template) if self.client else {}
         self.project_id = result.get("project_id", "")
         if self.project_id:
             self.inp_project.clear()
             self.refresh_projects_tree(self.project_id)
+            TacticalToast.show_toast(self, I18N.t("ma_toast_project_created"), "success")
         else:
-            QMessageBox.critical(self, "创建失败", "无法创建项目，请检查服务器连接。")
+            TacticalToast.show_toast(self, I18N.t("ma_toast_create_fail"), "error")
 
     def on_ws_message(self, data):
         """Handle WebSocket messages for Orchestration Feedback"""
@@ -184,24 +360,32 @@ class MultiAgentWidget(QWidget):
                 if status == "step_start":
                     role = data.get("role", "Unknown")
                     task = data.get("task", "Unknown Task")
-                    message = f"[{role}] 开始任务: {task}"
+                    message = I18N.t("ma_task_start").format(role, task)
                 elif status == "step_done":
                     role = data.get("role", "Unknown")
                     output = data.get("output", "")
                     # Truncate output for display
                     preview = output[:100] + "..." if len(output) > 100 else output
-                    message = f"[{role}] 任务完成. 输出预览: {preview}"
+                    message = I18N.t("ma_task_done").format(role, preview)
+                    TacticalToast.show_toast(self, f"Task Done: {role}", "success")
                 elif status == "plan_created":
                     tasks = data.get("tasks", [])
-                    message = f"计划已生成，共 {len(tasks)} 个步骤。"
+                    message = I18N.t("ma_plan_created").format(len(tasks))
+                    TacticalToast.show_toast(self, f"Plan: {len(tasks)} steps", "info")
                 elif status == "complete":
                     report = data.get("report", "")
-                    message = "流程结束。报告已生成。"
+                    message = I18N.t("ma_workflow_end")
                     if report:
                         # Append report separately or as part of message
                         pass 
                 elif status == "error":
                     message = data.get("error", "Unknown Error")
+                    TacticalToast.show_toast(self, f"Error: {message[:30]}...", "error")
+                elif status == "waiting_for_approval":
+                    message = I18N.t("ma_workflow_paused")
+                    TacticalToast.show_toast(self, I18N.t("ma_toast_need_approval"), "warning")
+                    self.btn_approve.show()
+                    self.btn_reject.show()
 
             # Filter if current project (optional, currently showing all for demo)
             if self.project_id and project_id and project_id != self.project_id:
@@ -226,7 +410,11 @@ class MultiAgentWidget(QWidget):
             
             # If complete, maybe show the full report in viewer
             if status == "complete" and "report" in data:
-                self.viewer.setPlainText(data["report"])
+                self.report_viewer.setPlainText(data["report"])
+                self.tabs.setCurrentWidget(self.report_viewer)
+
+            if status in ["plan_created", "step_start", "step_done", "waiting_for_approval", "complete"]:
+                self.refresh_workflow_view()
             
             if status == "complete":
                 self.refresh_files()
@@ -247,7 +435,7 @@ class MultiAgentWidget(QWidget):
             p_item.setData(0, Qt.UserRole, ("project", p_id))
             self.tree.addTopLevelItem(p_item)
             
-            grp = QTreeWidgetItem(["群聊"])
+            grp = QTreeWidgetItem([I18N.t("ma_lbl_group_chat")])
             grp.setData(0, Qt.UserRole, ("group", p_id))
             p_item.addChild(grp)
             
@@ -290,7 +478,7 @@ class MultiAgentWidget(QWidget):
     def create_agent(self):
         if not self.project_id:
             return
-        role = self.inp_role.text().strip() or "执行助手"
+        role = self.inp_role.text().strip() or I18N.t("role_executor")
         model = self.combo_model.currentData() or "server-qwen2.5-7b"
         desc = ""
         r = self.client.create_agent(self.project_id, role, model, desc)
@@ -298,16 +486,17 @@ class MultiAgentWidget(QWidget):
             self.refresh_projects_tree()
 
     def init_team(self):
-        if not self.project_id:
-            QMessageBox.warning(self, "操作无效", "请先选择一个项目。")
+        if not self.current_project_id:
+            TacticalToast.show_toast(self, I18N.t("toast_select_project_first"), "warning")
             return
         r = self.client.init_team(self.project_id)
         if r.get("ok"):
             self.refresh_projects_tree(self.project_id)
+            TacticalToast.show_toast(self, I18N.t("toast_team_init"), "success")
 
     def send_chat(self):
         if not self.project_id:
-            QMessageBox.warning(self, "未选择项目", "请先在左侧选择或新建一个项目以开始对话。")
+            TacticalToast.show_toast(self, "请先在左侧选择或新建一个项目以开始对话。", "warning")
             return
         text = self.inp_chat.text().strip()
         if not text:

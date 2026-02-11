@@ -225,26 +225,19 @@ class APIClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def init_team(self, project_id: str):
+    def control_workflow(self, project_id: str, action: str, message: str = ""):
         try:
-            response = requests.post(f"{self.base_url}/api/v1/projects/{project_id}/init_team", json={}, headers=self._get_headers())
-            if response.status_code == 200:
-                return response.json()
-            return {"error": response.text}
-        except Exception as e:
-            return {"error": str(e)}
-        try:
-            response = requests.get(f"{self.base_url}/api/v1/projects/{project_id}/log", headers=self._get_headers())
+            payload = {"action": action, "message": message}
+            response = requests.post(f"{self.base_url}/api/v1/projects/{project_id}/control", json=payload, headers=self._get_headers())
             if response.status_code == 200:
                 return response.json()
             return {"error": response.text}
         except Exception as e:
             return {"error": str(e)}
 
-    def orchestrate(self, project_id: str, message: str):
+    def init_team(self, project_id: str):
         try:
-            payload = {"project_id": project_id, "message": message}
-            response = requests.post(f"{self.base_url}/api/v1/orchestrate/", json=payload, headers=self._get_headers(), timeout=60)
+            response = requests.post(f"{self.base_url}/api/v1/projects/{project_id}/init_team", json={}, headers=self._get_headers())
             if response.status_code == 200:
                 return response.json()
             return {"error": response.text}

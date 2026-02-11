@@ -3,6 +3,7 @@ from server.core.config import settings
 from server.core.llm import llm_engine
 from server.core.memory import memory_manager
 from server.core.search_engine import ai_search
+from server.core.i18n import I18N
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -58,12 +59,12 @@ async def chat(request: ChatRequest):
     combined_context = ""
     if search_context:
         # Fusion Feedback
-        combined_context += f"\n\n[System: The following is real-time data retrieved from the network. Use it to answer the user's query accurately.]\n{search_context}\n"
+        combined_context += f"\n\n{I18N.t('chat_system_search_data')}\n{search_context}\n"
     if memory_context:
         combined_context += f"\n\n{memory_context}\n"
         
     if combined_context:
-        system_prompt += combined_context + "\nUse the above information to provide a comprehensive answer."
+        system_prompt += combined_context + f"\n{I18N.t('chat_system_use_info')}"
 
     # Stream response handling would be ideal, but standard REST returns full text
     # For now, we collect the stream

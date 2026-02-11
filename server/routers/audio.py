@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Body, UploadFile, File, WebSocket, WebSocketDisconnect
 from server.core.audio import audio_manager
+from server.core.i18n import I18N
 from fastapi.responses import FileResponse
 import uuid
 import os
@@ -78,7 +79,7 @@ async def text_to_speech_endpoint(
     language: str = Body("zh", embed=True)
 ):
     if not text or len(text) > 500:
-        raise HTTPException(status_code=400, detail="Invalid text length (1-500 chars)")
+        raise HTTPException(status_code=400, detail=I18N.t("invalid_text_length"))
 
     filename = f"tts_{uuid.uuid4()}.wav"
     base_dir = Path(__file__).resolve().parents[1]
@@ -89,7 +90,7 @@ async def text_to_speech_endpoint(
     success = audio_manager.text_to_speech(text, output_path, speed, volume, voice_id, language)
     
     if not success:
-        raise HTTPException(status_code=500, detail="TTS generation failed or disabled")
+        raise HTTPException(status_code=500, detail=I18N.t("tts_fail"))
         
     return FileResponse(output_path, media_type="audio/wav", filename=filename)
 

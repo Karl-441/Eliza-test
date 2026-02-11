@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from server.core.file_analysis import file_analyzer
 from server.routers.dashboard import get_current_user
+from server.core.i18n import I18N
 import shutil
 import os
 import tempfile
@@ -22,6 +23,8 @@ async def analyze_file(file: UploadFile = File(...), user: dict = Depends(get_cu
         # Inject original filename since temp file has random name
         result["filename"] = file.filename
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=I18N.t("error_file_analysis_failed", error=str(e)))
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
