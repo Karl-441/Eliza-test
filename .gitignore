@@ -38,5 +38,4 @@ server/Models/llm/*.gguf
 server/Models/llm/blobs/*
 server/Models/llm/*
 .gitignore
-.gitignore
-.gitignore
+tests/*
