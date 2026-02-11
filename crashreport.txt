@@ -1,0 +1,110 @@
+llama_context: n_ctx_per_seq (4096) < n_ctx_train (32768) -- the full capacity of the model will not be utilized
+INFO:server.core.llm:Model loaded from D:\Github\Eliza-test\server\Models\llm\qwen2.5-1.5b-instruct-q4_k_m.gguf
+INFO:     Started server process [9084]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:root:GET /api/v1/projects/ - 200 - 0.0113s
+INFO:     127.0.0.1:61393 - "GET /api/v1/projects/ HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/projects/45ba17b6-d460-48aa-ac64-7307622b4f85/agents - 200 - 0.0025s
+INFO:     127.0.0.1:61397 - "GET /api/v1/projects/45ba17b6-d460-48aa-ac64-7307622b4f85/agents HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/projects/32bfbd6c-a720-43cb-95d3-e708b0154279/agents - 200 - 0.0017s
+INFO:     127.0.0.1:61400 - "GET /api/v1/projects/32bfbd6c-a720-43cb-95d3-e708b0154279/agents HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/agents - 200 - 0.0015s
+INFO:     127.0.0.1:61402 - "GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/agents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57775 - "WebSocket /api/v1/dashboard/ws/13ebdc4a-2e27-404c-92cb-95429ba6854d" [accepted]
+INFO:     connection open
+INFO:root:GET /api/v1/system/status - 200 - 0.0008s
+INFO:     127.0.0.1:57776 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0008s
+INFO:     127.0.0.1:57781 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/profile/ - 200 - 0.0025s
+INFO:     127.0.0.1:57782 - "GET /api/v1/profile/ HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/audio/voices - 200 - 0.0020s
+INFO:     127.0.0.1:57783 - "GET /api/v1/audio/voices HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/theme/config - 404 - 0.0008s
+INFO:     127.0.0.1:57784 - "GET /api/v1/theme/config HTTP/1.1" 404 Not Found
+INFO:root:GET /api/v1/system/status - 200 - 0.0005s
+INFO:     127.0.0.1:50920 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0006s
+INFO:     127.0.0.1:50924 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0004s
+INFO:     127.0.0.1:50927 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0003s
+INFO:     127.0.0.1:50930 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0004s
+INFO:     127.0.0.1:49551 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0005s
+INFO:     127.0.0.1:58189 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log - 200 - 0.0060s
+INFO:     127.0.0.1:58191 - "GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0005s
+INFO:     127.0.0.1:58194 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log - 200 - 0.0015s
+INFO:     127.0.0.1:58195 - "GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0007s
+INFO:     127.0.0.1:58199 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log - 200 - 0.0017s
+INFO:     127.0.0.1:58200 - "GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0006s
+INFO:     127.0.0.1:58203 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0005s
+INFO:     127.0.0.1:58206 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log - 200 - 0.0021s
+INFO:     127.0.0.1:58208 - "GET /api/v1/projects/39146515-3cb1-4f81-9914-84460228a14f/log HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0004s
+INFO:     127.0.0.1:58210 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0005s
+INFO:     127.0.0.1:58214 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0005s
+INFO:     127.0.0.1:61358 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0005s
+INFO:     127.0.0.1:56464 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0003s
+INFO:     127.0.0.1:56478 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:root:GET /api/v1/system/status - 200 - 0.0004s
+INFO:     127.0.0.1:56482 - "GET /api/v1/system/status HTTP/1.1" 200 OK
+INFO:server.core.framework.bus:Message Bus started.
+DEBUG: Handler subscribed to topic: broadcast
+DEBUG: Handler subscribed to topic: monitor
+DEBUG: Handler subscribed to topic: broadcast
+DEBUG: Handler subscribed to topic: agent.Product Manager-26ed
+DEBUG: Handler subscribed to topic: role.Product Manager
+INFO:server.core.framework.agent:Agent Product Manager-26ed (Product Manager) started.
+DEBUG: Handler subscribed to topic: broadcast
+DEBUG: Handler subscribed to topic: agent.Architect-e749
+DEBUG: Handler subscribed to topic: role.Architect
+INFO:server.core.framework.agent:Agent Architect-e749 (Architect) started.
+DEBUG: Handler subscribed to topic: broadcast
+DEBUG: Handler subscribed to topic: agent.Coder-5796
+DEBUG: Handler subscribed to topic: role.Coder
+INFO:server.core.framework.agent:Agent Coder-5796 (Coder) started.
+DEBUG: Handler subscribed to topic: broadcast
+DEBUG: Handler subscribed to topic: agent.Tester-451e
+DEBUG: Handler subscribed to topic: role.Tester
+INFO:server.core.framework.agent:Agent Tester-451e (Tester) started.
+DEBUG: Handler subscribed to topic: broadcast
+DEBUG: Handler subscribed to topic: agent.orch-1aa3
+DEBUG: Handler subscribed to topic: role.admin
+INFO:server.core.framework.agent:Agent orch-1aa3 (admin) started.
+DEBUG: Handler subscribed to topic: orchestrator
+DEBUG: Handler subscribed to topic: monitor
+DEBUG: Publishing event: orchestration.start (orchestration.start)
+DEBUG: Publishing event: agent.orch-1aa3 (orchestration.start)
+DEBUG: Event loop started
+DEBUG: Processing event: orchestration.start
+DEBUG: No handlers for topic: orchestration.start. Subscribers: ['broadcast', 'monitor', 'agent.Product Manager-26ed', 'role.Product Manager', 'agent.Architect-e749', 'role.Architect', 'agent.Coder-5796', 'role.Coder', 'agent.Tester-451e', 'role.Tester', 'agent.orch-1aa3', 'role.admin', 'orchestrator']
+DEBUG: Processing event: agent.orch-1aa3
+DEBUG: Found 1 handlers for agent.orch-1aa3
+DEBUG: Publishing event: monitor (orchestration.status)
+INFO:server.core.llm:Generating response for input length: 271
+INFO:server.core.llm:Response generated. Length: 198. Finish reason: stop
+DEBUG: Publishing event: monitor (orchestration.status)
+DEBUG: Publishing event: monitor (orchestration.status)
+DEBUG: Processing event: monitor
+DEBUG: Found 2 handlers for monitor
+DEBUG: Processing event: monitor
+DEBUG: Found 2 handlers for monitor
+DEBUG: Processing event: monitor
+DEBUG: Found 2 handlers for monitor
+INFO:     connection closed

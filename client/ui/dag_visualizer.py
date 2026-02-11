@@ -2,6 +2,8 @@ from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem, QGraph
 from PyQt5.QtCore import Qt, QRectF, QPointF
 from PyQt5.QtGui import QPen, QBrush, QColor, QPainter, QPainterPath, QFont
 from ..framework.theme import THEME
+from ..framework.i18n import I18N
+from ..components import TacticalButton
 from PyQt5.QtCore import Qt, QRectF, QPointF, pyqtSignal
 
 class DAGNode(QGraphicsItem):
@@ -196,8 +198,8 @@ class DAGWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         
         bar = QHBoxLayout()
-        self.btn_refresh = TacticalButton("刷新视图")
-        self.btn_layout = TacticalButton("重置布局")
+        self.btn_refresh = TacticalButton(I18N.t("btn_refresh_view"))
+        self.btn_layout = TacticalButton(I18N.t("btn_reset_layout"))
         bar.addStretch()
         bar.addWidget(self.btn_layout)
         bar.addWidget(self.btn_refresh)

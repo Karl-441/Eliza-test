@@ -89,6 +89,7 @@ async def control_workflow(project_id: str, payload: dict = Body(...), user: dic
     await message_bus.publish(Event(
         topic="orchestrator",
         type="orchestration.control",
+        source="api",
         data={"action": action, "project_id": project_id, "message": message},
         correlation_id=str(uuid.uuid4())
     ))
