@@ -7,6 +7,7 @@ __pycache__/
 build/
 dist/
 .pytest_cache/
+tests/
 
 # IDE
 .vscode/
@@ -38,4 +39,3 @@ server/Models/llm/*.gguf
 server/Models/llm/blobs/*
 server/Models/llm/*
 .gitignore
-tests/
