@@ -49,10 +49,28 @@ class Settings(BaseModel):
     admin_user: str = "admin"
     admin_password_hash: str = "" # Empty means default "admin" (will handle in auth logic) or uninitialized
     jwt_secret: str = "change_this_to_a_random_secret_key"
+    client_api_key: str = "eliza-client-key-12345" # Default key for clients
+    allowed_apps: list = [
+        "notepad.exe", "calc.exe", "explorer.exe", 
+        "chrome.exe", "firefox.exe", "msedge.exe"
+    ]
     
     # Paths
     memory_path: str = str(DATA_DIR / "memory.json")
     user_profile_path: str = str(DATA_DIR / "user_profile.json")
+
+    # Database Settings
+    database_url: str = "sqlite:///./server/data/projects.db"  # Default to SQLite
+    vector_dim: int = 384 # Default for all-MiniLM-L6-v2
+    
+    # OpenAI Settings (for Embeddings/LLM Triggers)
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    embedding_model: str = "text-embedding-3-small"
+
+    # Local Embedding Settings
+    embedding_provider: str = "local" # local or openai
+    local_embedding_model: str = "all-MiniLM-L6-v2" # sentence-transformers model
 
     def save(self, path=None):
         target = Path(path) if path else (CONFIG_DIR / "settings.json")
@@ -65,7 +83,20 @@ class Settings(BaseModel):
         target = Path(path) if path else (CONFIG_DIR / "settings.json")
         if target.exists():
             with open(target, "r", encoding="utf-8") as f:
-                return cls(**json.load(f))
-        return cls()
+                data = json.load(f)
+                obj = cls(**data)
+                
+                # Auto-generate secret if default
+                if obj.jwt_secret == "change_this_to_a_random_secret_key":
+                     import secrets
+                     obj.jwt_secret = secrets.token_urlsafe(32)
+                     obj.save(path=target)
+                return obj
+        
+        # New instance
+        obj = cls()
+        import secrets
+        obj.jwt_secret = secrets.token_urlsafe(32)
+        return obj
 
 settings = Settings.load()

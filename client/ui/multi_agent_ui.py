@@ -7,6 +7,7 @@ from ..framework.websocket import WebSocketClient
 from ..framework.i18n import I18N
 from .dag_visualizer import DAGWidget
 from .task_detail_dialog import TaskDetailDialog
+from .components import UniversalContextMenu
 import uuid
 import webbrowser
 
@@ -21,8 +22,9 @@ class MultiAgentWidget(QWidget):
         
         # WebSocket Setup
         self.client_id = str(uuid.uuid4())
-        # Assuming server is localhost:8000. In prod, get from config.
-        self.ws_client = WebSocketClient(f"ws://localhost:8000/api/v1/dashboard/ws/{self.client_id}")
+        base_url = self.client.base_url if self.client else "http://localhost:8000"
+        ws_url = base_url.replace("http", "ws").replace("https", "wss")
+        self.ws_client = WebSocketClient(f"{ws_url}/api/v1/dashboard/ws/{self.client_id}")
         self.ws_client.message_received.connect(self.on_ws_message)
         self.ws_client.start()
         
@@ -106,6 +108,8 @@ class MultiAgentWidget(QWidget):
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
         self.tree.itemClicked.connect(self.on_tree_clicked)
+        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self.show_project_context_menu)
         layout.addWidget(self.tree)
         self.agent_bar = QHBoxLayout()
         self.inp_role = QLineEdit()
@@ -389,7 +393,7 @@ class MultiAgentWidget(QWidget):
 
             # Filter if current project (optional, currently showing all for demo)
             if self.project_id and project_id and project_id != self.project_id:
-                pass # Or show notification
+                TacticalToast.show_toast(self, f"Update in Project {project_id}", "info")
                 
             # Append to chat with style
             color = THEME.get_color('accent')
@@ -515,4 +519,70 @@ class MultiAgentWidget(QWidget):
             self.chat_history.append(line)
         if log:
             last = log[-1]
-            self.viewer.setPlainText(last.get("content",""))
+            if hasattr(self, 'report_viewer'):
+                self.report_viewer.setPlainText(last.get("content",""))
+
+    def show_project_context_menu(self, pos):
+        item = self.tree.itemAt(pos)
+        menu = UniversalContextMenu(self)
+        
+        if not item:
+            # Global Actions
+            menu.add_tactical_action(I18N.t("ma_btn_refresh"), lambda: self.refresh_projects_tree())
+        else:
+            data = item.data(0, Qt.UserRole)
+            if data:
+                type_ = data[0]
+                if type_ == "project":
+                    project_id = data[1]
+                    menu.add_tactical_action(I18N.t("ma_ctx_view_details"), lambda: self.show_project_details(project_id))
+                    menu.add_tactical_action(I18N.t("ma_btn_refresh"), lambda: self.refresh_projects_tree(project_id))
+                    menu.addSeparator()
+                    menu.add_tactical_action(I18N.t("ma_ctx_delete_project"), lambda: self.confirm_delete_project(project_id, item))
+                elif type_ == "agent":
+                    pass
+
+        menu.exec_(self.tree.mapToGlobal(pos))
+
+    def show_project_details(self, project_id):
+        if not self.client: return
+        projects = self.client.list_projects().get("projects", [])
+        project = next((p for p in projects if p.get("id") == project_id), None)
+        
+        if project:
+            data = {
+                "id": project.get("id"),
+                "description": project.get("name"),
+                "status": "Active", 
+                "role": project.get("template", "Custom"),
+                "dependencies": [
+                    f"Created: {project.get('created_at', 'Unknown')}",
+                    f"Owner: {project.get('owner_user', 'Unknown')}"
+                ],
+                "result": f"Project ID: {project.get('id')}"
+            }
+            dialog = TaskDetailDialog(self, data)
+            dialog.setWindowTitle("Project Details")
+            dialog.exec_()
+
+    def confirm_delete_project(self, project_id, item):
+        reply = QMessageBox.question(
+            self, 
+            I18N.t("ma_dlg_delete_title"), 
+            I18N.t("ma_dlg_delete_msg"),
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            success = self.client.delete_project(project_id)
+            if success:
+                index = self.tree.indexOfTopLevelItem(item)
+                if index >= 0:
+                    self.tree.takeTopLevelItem(index)
+                TacticalToast.show_toast(self, I18N.t("ma_toast_delete_success"), "success")
+                if self.project_id == project_id:
+                    self.project_id = ""
+                    self.chat_history.clear()
+            else:
+                TacticalToast.show_toast(self, I18N.t("ma_toast_delete_fail"), "error")

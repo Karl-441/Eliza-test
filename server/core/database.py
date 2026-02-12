@@ -4,13 +4,16 @@ from sqlalchemy.orm import sessionmaker
 from server.core.config import settings
 import os
 
-# Use SQLite for now
-DB_URL = "sqlite:///./server/data/projects.db"
+# Ensure data directory exists if using SQLite
+if settings.database_url.startswith("sqlite"):
+    os.makedirs(os.path.dirname(settings.database_url.replace("sqlite:///", "")), exist_ok=True)
 
-# Ensure data directory exists
-os.makedirs(os.path.dirname("server/data/projects.db"), exist_ok=True)
+# Handle SQLite specific args
+connect_args = {}
+if settings.database_url.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
 
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+engine = create_engine(settings.database_url, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

@@ -13,15 +13,7 @@ pyautogui.PAUSE = 0.1
 
 class SystemController:
     def __init__(self):
-        self.whitelist: List[str] = [
-            "notepad.exe", 
-            "calc.exe", 
-            "explorer.exe",
-            "cmd.exe", # Be careful with this one
-            "chrome.exe",
-            "firefox.exe",
-            "msedge.exe"
-        ]
+        self.whitelist: List[str] = settings.allowed_apps
         
     def move_mouse(self, x: int, y: int, duration: float = 0.5):
         """Safely move mouse to coordinates."""

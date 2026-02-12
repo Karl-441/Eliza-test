@@ -2,9 +2,11 @@ import requests
 import json
 
 class APIClient:
-    def __init__(self, base_url="http://localhost:8000", api_key="eliza-client-key-12345"):
+    def __init__(self, base_url="http://localhost:8000", api_key=None):
         self.base_url = base_url
-        self.api_key = api_key
+        # Use provided key, or env var, or default dev key
+        import os
+        self.api_key = api_key or os.getenv("ELIZA_API_KEY", "eliza-client-key-12345")
 
     def _get_headers(self):
         return {"X-API-Key": self.api_key}
@@ -13,7 +15,8 @@ class APIClient:
         try:
             response = requests.get(f"{self.base_url}/api/v1/system/status", timeout=2)
             return response.status_code == 200
-        except:
+        except Exception as e:
+            print(f"Connection check failed: {e}")
             return False
 
     def get_status(self):
@@ -59,21 +62,24 @@ class APIClient:
         try:
             requests.delete(f"{self.base_url}/api/v1/profile/memory", headers=self._get_headers())
             return True
-        except:
+        except Exception as e:
+            print(f"Error clearing memory: {e}")
             return False
 
     def get_config(self):
         try:
             response = requests.get(f"{self.base_url}/api/v1/config/", headers=self._get_headers())
             return response.json()
-        except:
+        except Exception as e:
+            print(f"Error getting config: {e}")
             return {}
 
     def update_config(self, config):
         try:
             requests.post(f"{self.base_url}/api/v1/config/", json=config, headers=self._get_headers())
             return True
-        except:
+        except Exception as e:
+            print(f"Error updating config: {e}")
             return False
 
     def get_voices(self):
@@ -82,7 +88,8 @@ class APIClient:
             if response.status_code == 200:
                 return response.json()
             return {}
-        except:
+        except Exception as e:
+            print(f"Error getting voices: {e}")
             return {}
 
     def get_tts(self, text, speed=1.0, volume=1.0, voice_id="default"):
@@ -144,10 +151,22 @@ class APIClient:
     # --- Prompt Management ---
 
     def get_prompts(self):
-        return []
-
+        try:
+            response = requests.get(f"{self.base_url}/api/v1/config/prompts", headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return []
+        except Exception as e:
+            print(f"Error getting prompts: {e}")
+            return []
+        
     def save_prompt(self, prompt_data):
-        return False
+        try:
+            response = requests.post(f"{self.base_url}/api/v1/config/prompts", json=prompt_data, headers=self._get_headers())
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Error saving prompt: {e}")
+            return False
 
     def create_project(self, name: str, template: str = ""):
         try:
@@ -158,6 +177,14 @@ class APIClient:
             return {"error": response.text}
         except Exception as e:
             return {"error": str(e)}
+
+    def delete_project(self, project_id: str):
+        try:
+            response = requests.delete(f"{self.base_url}/api/v1/projects/{project_id}", headers=self._get_headers())
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Delete error: {e}")
+            return False
 
     def list_output_files(self):
         try:

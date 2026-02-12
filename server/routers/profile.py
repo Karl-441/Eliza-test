@@ -1,11 +1,48 @@
 from fastapi import APIRouter, HTTPException, Body, Depends
-from server.core.memory import memory_manager
+from server.core.memory import memory_manager, vector_store
 from server.routers.dashboard import get_current_user
 from server.core.i18n import I18N
 
 router = APIRouter()
 
 from server.core.persona import persona_manager
+
+@router.get("/layers/{layer_name}")
+def get_layer_memories(layer_name: str, user: dict = Depends(get_current_user)):
+    if layer_name not in ["instinct", "subconscious", "active_recall"]:
+        raise HTTPException(status_code=400, detail="Invalid layer name")
+    
+    memories = vector_store.get_all_memories(layer_name)
+    return {"layer": layer_name, "count": len(memories), "memories": memories}
+
+@router.post("/layers/{layer_name}/search")
+def search_layer(layer_name: str, query: str = Body(..., embed=True), user: dict = Depends(get_current_user)):
+    if layer_name == "instinct":
+        return vector_store.search_instinct(query)
+    elif layer_name == "subconscious":
+        return vector_store.search_subconscious(query)
+    elif layer_name == "active_recall":
+        return vector_store.search_active_recall(query)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid layer name")
+
+@router.post("/layers/{layer_name}/add")
+def add_memory_to_layer(layer_name: str, data: dict = Body(...), user: dict = Depends(get_current_user)):
+    content = data.get("content")
+    if not content:
+        raise HTTPException(status_code=400, detail="Content is required")
+
+    if layer_name == "instinct":
+        trait_type = data.get("trait_type", "general")
+        return vector_store.add_instinct(content, trait_type)
+    elif layer_name == "subconscious":
+        keywords = data.get("keywords", "")
+        return vector_store.add_subconscious(content, keywords)
+    elif layer_name == "active_recall":
+        role = data.get("role", "user")
+        return vector_store.add_active_recall(content, role)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid layer name")
 
 @router.get("/persona")
 async def get_persona(user: dict = Depends(get_current_user)):

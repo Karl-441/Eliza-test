@@ -59,6 +59,44 @@ class ThemeEngine(QObject):
             "duration_normal": 300,
             "easing": "OutQuad"
         }
+        
+        self.current_theme = "dark"
+        self.themes = {
+            "dark": self.colors.copy(),
+            "light": {
+                "background": "#F0F0F0",
+                "background_secondary": "#FFFFFF",
+                "background_tertiary": "#E0E0E0",
+                "accent": "#007ACC",
+                "accent_hover": "#0099FF",
+                "accent_dim": "rgba(0, 122, 204, 0.3)",
+                "text_primary": "#333333",
+                "text_secondary": "#666666",
+                "border": "#007ACC",
+                "success": "#00CC66",
+                "warning": "#FF3333",
+                "error": "#FF0000",
+                "grid": "rgba(0, 0, 0, 0.1)"
+            }
+        }
+
+    def toggle(self):
+        new_theme = "light" if self.current_theme == "dark" else "dark"
+        self.current_theme = new_theme
+        self.colors = self.themes[new_theme].copy()
+        self.signals.theme_changed.emit()
+
+    def set_base_font_size(self, size):
+        if size <= 0: return
+        # Scale all fonts based on ratio of new body size to default body size (14)
+        ratio = size / 14.0
+        defaults = {
+            "size_h1": 24, "size_h2": 20, "size_h3": 18, 
+            "size_body": 14, "size_small": 12
+        }
+        for k, v in defaults.items():
+            self.fonts[k] = int(v * ratio)
+        self.signals.theme_changed.emit()
 
     def get_color(self, key, alpha=1.0):
         c = self.colors.get(key, "#FF00FF")

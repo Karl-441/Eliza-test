@@ -72,21 +72,50 @@ class LLMEngine:
         messages.extend(memory_manager.get_history())
         messages.append({"role": "user", "content": user_input})
         
-        logger.info(f"Generating response for input length: {len(user_input)}")
+        return self.generate_completion(messages)
+
+    def stream_response(self, user_input: str, system_prompt: str = None):
+        if not self.model:
+            yield f"System Alert: Neural Cloud Model not found or failed to load.\nPath: {settings.model_path}\nPlease configure the model path in SETTINGS."
+            return
+
+        if not system_prompt:
+            system_prompt = memory_manager.get_context_prompt()
+
+        # Prepare messages including history
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(memory_manager.get_history())
+        messages.append({"role": "user", "content": user_input})
+        
+        try:
+            # Enable stream=True
+            stream = self.model.create_chat_completion(
+                messages=messages,
+                temperature=settings.temperature,
+                top_p=settings.top_p,
+                max_tokens=2048, 
+                stream=True
+            )
+            
+            for chunk in stream:
+                if "content" in chunk["choices"][0]["delta"]:
+                    yield chunk["choices"][0]["delta"]["content"]
+                    
+        except Exception as e:
+            logger.error(f"Error streaming response: {e}")
+            yield f"Error: {e}"
+
+    def generate_completion(self, messages: list) -> str:
+        if not self.model:
+             return "Error: LLM model is not loaded."
 
         try:
             # Set max_tokens explicitly to avoid default truncation
-            # Using 0 or -1 usually means infinite in some libs, but for llama-cpp-python, 
-            # safe bet is to let it default or set high. 
-            # We will use settings.n_ctx if possible, but create_chat_completion 
-            # handles context window automatically. 
-            # However, to prevent "9 char" issue, we explicitly request a large generation window.
-            
             response = self.model.create_chat_completion(
                 messages=messages,
                 temperature=settings.temperature,
                 top_p=settings.top_p,
-                max_tokens=2048, # Explicitly set high max_tokens
+                max_tokens=2048, 
                 stream=False
             )
             

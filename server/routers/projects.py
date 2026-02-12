@@ -30,6 +30,22 @@ def list_projects(user: dict = Depends(get_current_user)):
         return projects_store.list_by_owner_user(user.get("user",""))
     return {"projects": []}
 
+@router.delete("/{project_id}")
+def delete_project(project_id: str, user: dict = Depends(get_current_user)):
+    role = user.get("role", "guest")
+    # Only owner or admin can delete
+    proj = projects_store.get_project(project_id)
+    if not proj:
+        return {"error": I18N.t("project_not_found")}
+    
+    if role != "admin" and proj.get("owner_user") != user.get("user"):
+        return {"error": I18N.t("permission_denied")}
+        
+    success = projects_store.delete_project(project_id)
+    if success:
+        return {"status": "deleted", "project_id": project_id}
+    return {"error": I18N.t("delete_failed")}
+
 @router.post("/{project_id}/agents")
 def create_agent(project_id: str, payload: dict, user: dict = Depends(get_current_user)):
     role_name = payload.get("role_name", "")

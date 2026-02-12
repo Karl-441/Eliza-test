@@ -79,6 +79,13 @@ async def register_page():
         return {"error": I18N.t("register_not_found")}
     return FileResponse(reg_path)
 
+@app.get("/memory", tags=["System"])
+async def memory_page():
+    memory_path = STATIC_DIR / "memory.html"
+    if not memory_path.exists():
+        return {"error": "Memory page not found"}
+    return FileResponse(memory_path)
+
 from fastapi import Depends
 
 API_PREFIX = "/api/v1"

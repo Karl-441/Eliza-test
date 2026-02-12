@@ -30,54 +30,61 @@ class PersonaManager:
 
     def analyze_memory(self):
         """
-        Analyzes LTM to extract persona traits.
-        This is a heuristic/mock implementation. In production, use LLM.
+        Analyzes LTM to extract persona traits using LLM.
         """
+        from .llm import llm_engine
+        
         ltm = memory_manager.long_term_memory
         if not ltm:
             return
-
-        # Simple keyword heuristics
-        text_corpus = " ".join([n.content for n in ltm if n.role == "user"]).lower()
+            
+        # Limit analysis to last 50 user messages to save context/time
+        user_msgs = [n.content for n in ltm if n.role == "user"][-50:]
+        if not user_msgs:
+            return
+            
+        text_corpus = "\n".join(user_msgs)
         
-        # Interests
-        keywords = {
-            "tech": ["code", "programming", "computer", "ai", "python", "server"],
-            "art": ["design", "color", "music", "draw", "creative"],
-            "strategy": ["plan", "tactic", "mission", "objective"],
-            "casual": ["haha", "lol", "cool", "yeah", "sup"]
-        }
+        prompt = f"""
+        Analyze the following user messages to extract their persona profile.
         
-        detected_interests = set()
-        for category, words in keywords.items():
-            if any(w in text_corpus for w in words):
-                detected_interests.add(category)
+        User Messages:
+        {text_corpus}
         
-        self.current_persona.interests = list(detected_interests)
-
-        # Style
-        if "casual" in detected_interests:
-            self.current_persona.communication_style = "casual"
-        elif len(text_corpus.split()) / (len(ltm) + 1) > 20:
-            self.current_persona.communication_style = "verbose"
-        else:
-            self.current_persona.communication_style = "formal"
-
-        # Relationship Level (based on interaction count)
-        count = len(ltm) + len(memory_manager.short_term_memory)
-        self.current_persona.relationship_level = min(100, count * 2)
-
-        # Traits (Mock)
-        self.current_persona.traits = {
-            "analytical": 0.8 if "tech" in detected_interests else 0.4,
-            "creative": 0.8 if "art" in detected_interests else 0.3,
-            "proactive": 0.6
-        }
+        Return a JSON object with the following fields:
+        - interests: list of strings (e.g. ["coding", "sci-fi"])
+        - communication_style: string (one of: formal, casual, terse, verbose)
+        - traits: dictionary of string keys and float values 0.0-1.0 (e.g. {{"analytical": 0.8, "creative": 0.4}})
         
-        import datetime
-        self.current_persona.last_analyzed = datetime.datetime.now().isoformat()
-        self.save_persona()
-        logger.info("Persona analysis complete.")
+        Output JSON only.
+        """
+        
+        try:
+            response = llm_engine.generate_completion([{"role": "user", "content": prompt}])
+            
+            # Simple parsing of JSON from response (handling potential markdown code blocks)
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0]
+            elif "```" in response:
+                response = response.split("```")[1].split("```")[0]
+                
+            data = json.loads(response.strip())
+            
+            self.current_persona.interests = data.get("interests", [])
+            self.current_persona.communication_style = data.get("communication_style", "formal")
+            self.current_persona.traits = data.get("traits", {})
+            
+            # Relationship Level (based on interaction count)
+            count = len(ltm) + len(memory_manager.short_term_memory)
+            self.current_persona.relationship_level = min(100, count * 2)
+            
+            import datetime
+            self.current_persona.last_analyzed = datetime.datetime.now().isoformat()
+            self.save_persona()
+            logger.info("Persona analysis complete (LLM based).")
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze persona with LLM: {e}")
 
     def get_persona(self) -> Dict[str, Any]:
         return self.current_persona.dict()

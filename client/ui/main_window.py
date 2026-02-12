@@ -116,7 +116,7 @@ class MainWindow(QMainWindow):
         self.apply_styles()
         
         self._ui_font_size = int(self.settings.value("ui_font_size_override", 0)) or self.compute_target_font_size()
-        # THEME.set_base_font_size(self._ui_font_size) # TODO: Implement in ThemeEngine if needed
+        THEME.set_base_font_size(self._ui_font_size)
         
         self.add_system_message(I18N.t("initializing_neural_link"))
         QTimer.singleShot(1000, self.check_server)
@@ -540,8 +540,7 @@ class MainWindow(QMainWindow):
             self.char_image.setStyleSheet(f"color: {THEME.get_color('accent')}; font-size: {THEME.fonts['size_h1']}px; font-weight: bold; border: 1px solid {THEME.get_color('accent_dim')};")
 
     def toggle_theme(self):
-        # TODO: Implement theme toggling in THEME engine
-        # THEME.toggle() 
+        THEME.toggle() 
         self.apply_styles()
         # Recreate panels to apply new styles
         self.left_panel.hide()
@@ -860,8 +859,8 @@ class MainWindow(QMainWindow):
 
     def update_vad_settings(self):
         if hasattr(self, 'voice_ctrl'):
-            # self.voice_system.vad_threshold = self.voice_ctrl.slider_thresh.value() / 100.0
-            pass # TODO: expose setting in VoiceSystem
+            # Map slider 1-50 to 0.01 - 0.50
+            self.voice_system.vad_threshold = self.voice_ctrl.slider_thresh.value() / 100.0
 
     def on_silence_detected(self):
         pass # Managed by VoiceSystem internally via server commit

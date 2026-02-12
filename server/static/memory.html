@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliza Memory System</title>
+    <!-- Vue 3 -->
+    <script src="/static/assets/js/vue.global.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="/static/assets/js/tailwindcss.js"></script>
+    <!-- Chart.js for Stats -->
+    <script src="/static/assets/js/chart.js"></script>
+    <style>
+        [v-cloak] { display: none !important; }
+        :root {
+            --bg-color: #141414;
+            --bg-secondary: #1F1F1F;
+            --accent-color: #FFB400;
+            --text-color: #E0E0E0;
+            --border-color: #404040;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .nav-item {
+            cursor: pointer;
+            padding: 0.75rem 1.5rem;
+            border-bottom: 2px solid transparent;
+            color: #888;
+            transition: all 0.2s;
+        }
+        .nav-item:hover {
+            color: var(--accent-color);
+        }
+        .nav-item.active {
+            border-bottom-color: var(--accent-color);
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .memory-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s;
+        }
+        .memory-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-color);
+        }
+        .layer-badge {
+            font-size: 0.75rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+        }
+        .layer-instinct { background: #3b82f6; color: white; }
+        .layer-subconscious { background: #8b5cf6; color: white; }
+        .layer-active { background: #10b981; color: white; }
+    </style>
+</head>
+<body>
+    <div id="app" v-cloak class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <h1 class="text-2xl font-bold text-yellow-500">Eliza Memory System</h1>
+                <span class="text-xs bg-gray-800 px-2 py-1 rounded text-gray-400">v1.0.0</span>
+            </div>
+            <div class="flex gap-4">
+                <a href="/dashboard" class="text-gray-400 hover:text-white">Dashboard</a>
+                <button @click="refreshAll" class="text-yellow-500 hover:text-yellow-400">Refresh</button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-gray-900 border-b border-gray-800">
+            <div class="container mx-auto flex">
+                <div v-for="tab in tabs" :key="tab.id" 
+                     class="nav-item" 
+                     :class="{ active: currentTab === tab.id }"
+                     @click="currentTab = tab.id">
+                    {{ tab.name }}
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto p-6">
+            
+            <!-- Loading -->
+            <div v-if="loading" class="text-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+                <p class="text-gray-500">Accessing Neural Cloud...</p>
+            </div>
+
+            <!-- Content -->
+            <div v-else>
+                <!-- Instinct Layer -->
+                <div v-if="currentTab === 'instinct'" class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Instinct Layer ({{ instinctMemories.length }})</h2>
+                        <button @click="showAddModal('instinct')" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white text-sm">Add Instinct</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div v-for="mem in instinctMemories" :key="mem.id" class="memory-card p-4 rounded relative">
+                            <div class="absolute top-2 right-2 text-xs text-gray-500">{{ mem.trait_type }}</div>
+                            <p class="text-lg mb-2">{{ mem.content }}</p>
+                            <div class="mt-2">
+                                <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                    <span>Strength</span>
+                                    <span>{{ (mem.strength * 100).toFixed(0) }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-blue-500 h-full" :style="{ width: (mem.strength * 100) + '%' }"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subconscious Layer -->
+                <div v-if="currentTab === 'subconscious'" class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Subconscious Layer ({{ subconsciousMemories.length }})</h2>
+                        <button @click="showAddModal('subconscious')" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-white text-sm">Add Association</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div v-for="mem in subconsciousMemories" :key="mem.id" class="memory-card p-4 rounded">
+                            <p class="mb-3">{{ mem.content }}</p>
+                            <div class="flex flex-wrap gap-2">
+                                <span v-for="k in (mem.keywords || '').split(',')" :key="k" class="text-xs bg-gray-800 text-purple-400 px-2 py-1 rounded">
+                                    #{{ k.trim() }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Recall Layer -->
+                <div v-if="currentTab === 'active_recall'" class="space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Active Recall Layer ({{ activeMemories.length }})</h2>
+                        <div class="flex gap-2">
+                            <input v-model="searchQuery" @keyup.enter="searchActive" placeholder="Search memories..." class="bg-gray-800 border border-gray-700 rounded px-3 py-1 text-sm text-white focus:outline-none focus:border-green-500">
+                            <button @click="showAddModal('active_recall')" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white text-sm">Add Event</button>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div v-for="mem in activeMemories" :key="mem.id" class="memory-card p-4 rounded flex gap-4">
+                            <div class="flex-shrink-0 w-12 text-center">
+                                <div class="text-xs text-gray-500">{{ new Date(mem.timestamp).toLocaleDateString() }}</div>
+                                <div class="text-lg font-bold text-gray-400">{{ new Date(mem.timestamp).getHours() }}:{{ String(new Date(mem.timestamp).getMinutes()).padStart(2, '0') }}</div>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-xs px-2 py-0.5 rounded" :class="mem.role === 'user' ? 'bg-blue-900 text-blue-200' : 'bg-green-900 text-green-200'">{{ mem.role }}</span>
+                                </div>
+                                <p class="text-gray-300">{{ mem.content }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph Visualization (Placeholder) -->
+                <div v-if="currentTab === 'graph'" class="h-[600px] bg-gray-900 rounded border border-gray-800 flex items-center justify-center">
+                    <div class="text-center">
+                        <p class="text-gray-500 mb-4">Memory Graph Visualization</p>
+                        <p class="text-xs text-gray-600">Nodes: {{ instinctMemories.length + subconsciousMemories.length + activeMemories.length }}</p>
+                        <!-- Actual graph implementation would go here using D3 or Vis.js -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Add Modal -->
+        <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+            <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 w-full max-w-md">
+                <h3 class="text-lg font-bold mb-4 text-white">Add to {{ modalLayerName }}</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Content</label>
+                        <textarea v-model="newItem.content" rows="3" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-yellow-500"></textarea>
+                    </div>
+                    
+                    <div v-if="modalLayer === 'instinct'">
+                        <label class="block text-sm text-gray-400 mb-1">Trait Type</label>
+                        <select v-model="newItem.trait_type" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                            <option value="personality">Personality</option>
+                            <option value="preference">Preference</option>
+                            <option value="habit">Habit</option>
+                        </select>
+                    </div>
+
+                    <div v-if="modalLayer === 'subconscious'">
+                        <label class="block text-sm text-gray-400 mb-1">Keywords (comma separated)</label>
+                        <input v-model="newItem.keywords" type="text" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                    </div>
+
+                    <div v-if="modalLayer === 'active_recall'">
+                        <label class="block text-sm text-gray-400 mb-1">Role</label>
+                        <select v-model="newItem.role" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white">
+                            <option value="user">User</option>
+                            <option value="assistant">Assistant</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button @click="showModal = false" class="px-4 py-2 rounded text-gray-400 hover:text-white">Cancel</button>
+                    <button @click="submitNewItem" class="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded text-white">Save Memory</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        createApp({
+            setup() {
+                const currentTab = ref('instinct');
+                const tabs = [
+                    { id: 'instinct', name: 'Instinct Layer' },
+                    { id: 'subconscious', name: 'Subconscious Layer' },
+                    { id: 'active_recall', name: 'Active Recall Layer' },
+                    { id: 'graph', name: 'Knowledge Graph' }
+                ];
+
+                const instinctMemories = ref([]);
+                const subconsciousMemories = ref([]);
+                const activeMemories = ref([]);
+                const loading = ref(false);
+                const searchQuery = ref("");
+
+                const showModal = ref(false);
+                const modalLayer = ref("");
+                const newItem = ref({});
+
+                const apiKey = "eliza-client-key-12345"; // Should come from config or auth
+
+                const modalLayerName = computed(() => {
+                    const t = tabs.find(t => t.id === modalLayer.value);
+                    return t ? t.name : '';
+                });
+
+                const fetchLayer = async (layer) => {
+                    try {
+                        const res = await fetch(`/api/v1/profile/layers/${layer}`, {
+                            headers: { "X-API-Key": apiKey }
+                        });
+                        const data = await res.json();
+                        if (layer === 'instinct') instinctMemories.value = data.memories;
+                        if (layer === 'subconscious') subconsciousMemories.value = data.memories;
+                        if (layer === 'active_recall') activeMemories.value = data.memories.reverse(); // Newest first
+                    } catch (e) {
+                        console.error(`Error fetching ${layer}:`, e);
+                    }
+                };
+
+                const refreshAll = async () => {
+                    loading.value = true;
+                    await Promise.all([
+                        fetchLayer('instinct'),
+                        fetchLayer('subconscious'),
+                        fetchLayer('active_recall')
+                    ]);
+                    loading.value = false;
+                };
+
+                const showAddModal = (layer) => {
+                    modalLayer.value = layer;
+                    newItem.value = { content: "" };
+                    if (layer === 'instinct') newItem.value.trait_type = 'personality';
+                    if (layer === 'active_recall') newItem.value.role = 'user';
+                    showModal.value = true;
+                };
+
+                const submitNewItem = async () => {
+                    if (!newItem.value.content) return;
+                    
+                    try {
+                        const res = await fetch(`/api/v1/profile/layers/${modalLayer.value}/add`, {
+                            method: "POST",
+                            headers: { 
+                                "Content-Type": "application/json",
+                                "X-API-Key": apiKey 
+                            },
+                            body: JSON.stringify(newItem.value)
+                        });
+                        
+                        if (res.ok) {
+                            showModal.value = false;
+                            fetchLayer(modalLayer.value);
+                        } else {
+                            alert("Failed to save memory");
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        alert("Error saving memory");
+                    }
+                };
+
+                const searchActive = async () => {
+                    if (!searchQuery.value) {
+                        fetchLayer('active_recall');
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/v1/profile/layers/active_recall/search`, {
+                            method: "POST",
+                            headers: { 
+                                "Content-Type": "application/json",
+                                "X-API-Key": apiKey 
+                            },
+                            body: JSON.stringify({ query: searchQuery.value })
+                        });
+                        const data = await res.json();
+                        // Search returns {memory, similarity}, we just want memory for display
+                        activeMemories.value = data.map(d => d.memory);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                };
+
+                onMounted(() => {
+                    refreshAll();
+                });
+
+                return {
+                    currentTab, tabs,
+                    instinctMemories, subconsciousMemories, activeMemories,
+                    loading, refreshAll,
+                    showModal, modalLayer, newItem, modalLayerName,
+                    showAddModal, submitNewItem,
+                    searchQuery, searchActive
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

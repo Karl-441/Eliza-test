@@ -71,7 +71,36 @@ class ProjectsStore:
         db = self._get_db()
         try:
             p = db.query(Project).filter(Project.id == project_id).first()
-            return self._project_to_dict(p) if p else None
+            if not p: return None
+            # Return dict directly from model fields
+            return {
+                "id": p.id,
+                "name": p.name,
+                "owner_user": p.owner_user,
+                "created_at": p.created_at.isoformat() if p.created_at else "",
+                "template": p.template,
+                "status": p.status
+            }
+        finally:
+            db.close()
+
+    def delete_project(self, project_id: str) -> bool:
+        db = self._get_db()
+        try:
+            project = db.query(Project).filter(Project.id == project_id).first()
+            if project:
+                # Cascade delete should be handled by DB foreign keys, 
+                # but explicit deletion is safer if relationships aren't perfect
+                db.query(Agent).filter(Agent.project_id == project_id).delete()
+                db.query(ProjectLog).filter(ProjectLog.project_id == project_id).delete()
+                db.delete(project)
+                db.commit()
+                return True
+            return False
+        except Exception as e:
+            logging.error(f"Error deleting project {project_id}: {e}")
+            db.rollback()
+            return False
         finally:
             db.close()
 

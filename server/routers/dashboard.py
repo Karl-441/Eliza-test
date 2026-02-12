@@ -2,17 +2,22 @@ import asyncio
 import json
 import logging
 import datetime # Added import
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, Request, Response, Query
+from fastapi.responses import FileResponse
 from typing import List, Optional
 from pydantic import BaseModel
 import secrets
 import hashlib
+import uuid
+import os
 from server.core.users import user_manager
 from server.core.model_manager import model_manager
 from server.core.monitor import monitor, client_manager, audit_logger, monitor_hub
 from server.core.llm import llm_engine
+from server.core.audio import audio_manager
 from server.middleware.auth import verify_api_key
 from server.core.i18n import I18N
+from server.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -42,8 +47,8 @@ def get_current_user(request: Request):
     # 2. Check API Key Header
     api_key = request.headers.get("X-API-Key")
     if api_key:
-        # Check hardcoded default key
-        if api_key == "eliza-client-key-12345":
+        # Check configured client key
+        if api_key == settings.client_api_key:
             return {
                 "user": "default_client",
                 "role": "user",
@@ -230,10 +235,41 @@ async def update_settings(new_settings: dict, user: dict = Depends(get_current_a
 
 # --- TTS Preview ---
 
+@router.get("/audio/preview/{filename}")
+async def get_audio_preview(filename: str):
+    temp_dir = os.path.join(os.path.dirname(settings.memory_path), "temp_audio")
+    file_path = os.path.join(temp_dir, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="Audio file not found")
+
 @router.post("/tts/preview")
 async def tts_preview(data: TTSPreviewRequest, user: dict = Depends(get_current_user)):
-    # Mock TTS preview generation
-    return {"status": "success", "message": "Preview generated (mock)", "audio_url": ""} 
+    try:
+        temp_dir = os.path.join(os.path.dirname(settings.memory_path), "temp_audio")
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        filename = f"preview_{uuid.uuid4()}.wav"
+        output_path = os.path.join(temp_dir, filename)
+        
+        success = audio_manager.text_to_speech(
+            text=data.text,
+            output_path=output_path,
+            speed=data.speed,
+            volume=data.volume,
+            voice_id=data.voice_id
+        )
+        
+        if success:
+            # Construct URL (assuming relative path for now, frontend handles base URL)
+            audio_url = f"/api/v1/dashboard/audio/preview/{filename}"
+            return {"status": "success", "message": "Preview generated", "audio_url": audio_url}
+        else:
+             return {"status": "error", "message": "Failed to generate audio"}
+             
+    except Exception as e:
+        logger.error(f"TTS Preview error: {e}")
+        return {"status": "error", "message": str(e)} 
 
 class ModelRequest(BaseModel):
     name: str
@@ -258,7 +294,7 @@ async def request_model(req: ModelRequest, user: dict = Depends(get_current_user
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     # Determine API Key. 
     # Since frontend currently doesn't send authentication, we use a default key.
-    api_key = "eliza-client-key-12345" 
+    api_key = settings.client_api_key 
     
     await websocket.accept()
     
