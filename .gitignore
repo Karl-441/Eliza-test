@@ -29,6 +29,7 @@ server/static/temp/
 server/data/temp_*
 conclude.md
 nextstep.md
+crashreport.txt
 
 # Large models and weights
 server/llm/*
