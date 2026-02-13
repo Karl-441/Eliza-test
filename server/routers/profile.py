@@ -44,6 +44,13 @@ def add_memory_to_layer(layer_name: str, data: dict = Body(...), user: dict = De
     else:
         raise HTTPException(status_code=400, detail="Invalid layer name")
 
+@router.delete("/layers/{layer_name}/{memory_id}")
+def delete_memory_item(layer_name: str, memory_id: int, user: dict = Depends(get_current_user)):
+    success = vector_store.delete_memory(layer_name, memory_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Memory not found or deletion failed")
+    return {"status": "success", "message": f"Memory {memory_id} deleted from {layer_name}"}
+
 @router.get("/persona")
 async def get_persona(user: dict = Depends(get_current_user)):
     return persona_manager.get_persona()

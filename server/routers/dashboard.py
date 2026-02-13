@@ -323,8 +323,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     
                 client_manager.update_activity(client_id)
             except asyncio.TimeoutError:
-                # Just a heartbeat check
-                pass
+                # Send heartbeat to check connection
+                try:
+                    await websocket.send_text(json.dumps({"type": "ping"}))
+                except Exception:
+                    break # Connection dead
                 
     except WebSocketDisconnect:
         monitor_hub.unregister(api_key, websocket)

@@ -27,6 +27,8 @@ auto_git.log
 # Temp files
 server/static/temp/
 server/data/temp_*
+conclude.md
+nextstep.md
 
 # Large models and weights
 server/llm/*

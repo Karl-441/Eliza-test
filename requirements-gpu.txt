@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# GPU Acceleration Notes
+# 1. PyTorch with CUDA:
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# 2. llama-cpp-python with CUDA:
+# $env:CMAKE_ARGS = "-DLLAMA_CUBLAS=on"
+# pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
+
+llama-cpp-python>=0.2.0

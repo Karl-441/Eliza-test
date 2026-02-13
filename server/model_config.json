@@ -1,28 +1,22 @@
 {
-    "models": [
-        {
-            "name": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            "type": "llm",
-            "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-            "description": "Qwen 2.5 1.5B Instruct (Q4_K_M) - Fast, lightweight, good instruction following.",
-            "size_mb": 1024,
-            "hash": ""
-        },
-        {
-            "name": "llama-3-8b-instruct-q4_k_m.gguf",
-            "type": "llm",
-            "url": "https://huggingface.co/QuantFactory/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct.Q4_K_M.gguf",
-            "description": "Llama 3 8B Instruct (Q4_K_M) - Powerful, standard size.",
-            "size_mb": 4900,
-            "hash": ""
-        },
-        {
-            "name": "mistral-7b-instruct-v0.3-q4_k_m.gguf",
-            "type": "llm",
-            "url": "https://huggingface.co/MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf",
-            "description": "Mistral 7B Instruct v0.3 (Q4_K_M) - High performance 7B model.",
-            "size_mb": 4300,
-            "hash": ""
-        }
-    ]
+  "models": [
+    {
+      "name": "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+      "repo_id": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+      "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "description": "Lightweight, capable instruction tuned model (Recommended for local dev)"
+    },
+    {
+      "name": "Llama-3-8B-Instruct-Q4_K_M.gguf",
+      "repo_id": "QuantFactory/Meta-Llama-3-8B-Instruct-GGUF",
+      "filename": "Meta-Llama-3-8B-Instruct.Q4_K_M.gguf",
+      "description": "Strong 8B model for general tasks"
+    },
+    {
+      "name": "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+      "repo_id": "MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF",
+      "filename": "Mistral-7B-Instruct-v0.3.Q4_K_M.gguf",
+      "description": "Mistral 7B v0.3 Instruction Tuned"
+    }
+  ]
 }

@@ -30,6 +30,8 @@ class GenericLLMAgent(BaseAgent):
         task_content = event.data.get("content")
         context = event.data.get("context", "")
         
+        start_time = time.time()
+
         # Notify Start
         await self.send_event(
             target_topic="orchestrator",
@@ -40,7 +42,8 @@ class GenericLLMAgent(BaseAgent):
                 "status": "step_start", # Frontend compat
                 "project_id": self.project_id,
                 "step_index": event.data.get("step_index", 0),
-                "task": event.data.get("task_title", "")
+                "task": event.data.get("task_title", ""),
+                "start_time": start_time
             },
             correlation_id=event.correlation_id
         )
@@ -82,6 +85,9 @@ class GenericLLMAgent(BaseAgent):
             except Exception as e:
                 pass # Tool execution failed or wasn't a tool call
 
+            end_time = time.time()
+            duration = end_time - start_time
+
             # Notify Completion
             await self.send_event(
                 target_topic="orchestrator",
@@ -92,7 +98,9 @@ class GenericLLMAgent(BaseAgent):
                     "role": self.role,
                     "status": "step_done", # Frontend compat
                     "project_id": self.project_id,
-                    "step_index": event.data.get("step_index", 0)
+                    "step_index": event.data.get("step_index", 0),
+                    "duration": duration,
+                    "model": self.model_name
                 },
                 correlation_id=event.correlation_id
             )
@@ -240,6 +248,7 @@ class OrchestratorAgent(BaseAgent):
         # Initialize task status
         for i, t in enumerate(self.tasks):
             t['status'] = 'pending'
+            t['retry_count'] = 0  # Initialize retry count
             if 'id' not in t:
                 t['id'] = f"task-{i}" # Fallback ID
 
@@ -355,6 +364,10 @@ class OrchestratorAgent(BaseAgent):
         task['status'] = 'completed'
         task['output'] = output
         task['performer'] = role
+        if 'duration' in data:
+            task['duration'] = data['duration']
+        if 'model' in data:
+            task['model'] = data['model']
 
         self.outputs.append({
             "role": role,
@@ -381,22 +394,47 @@ class OrchestratorAgent(BaseAgent):
     async def handle_task_failed(self, event: Event):
         task_id = event.data.get("task_id")
         task = next((t for t in self.tasks if t.get('id') == task_id), None)
-        if task:
-            task['status'] = 'failed'
-            task['error'] = event.data.get("error")
+        
+        if not task:
+            return
+
+        MAX_RETRIES = 3
+        current_retries = task.get('retry_count', 0)
+        
+        if current_retries < MAX_RETRIES:
+            # Retry logic
+            task['retry_count'] = current_retries + 1
+            task['status'] = 'pending' # Reset status to pending so it can be picked up again
+            
+            error_msg = event.data.get("error")
+            warning_msg = f"Task {task['title']} failed (Attempt {current_retries + 1}/{MAX_RETRIES}). Error: {error_msg}. Retrying..."
+            
+            await self.send_event("monitor", "orchestration.status", {
+                "type": "orchestration",
+                "status": "warning",
+                "project_id": self.project_id,
+                "message": warning_msg,
+                "api_key": self.api_key
+            }, correlation_id=self.correlation_id)
+            
             await self._save_state()
+            # Wait a bit before retry? 
+            await asyncio.sleep(2) 
+            await self.dispatch_next_task()
+            return
+
+        # Final failure
+        task['status'] = 'failed'
+        task['error'] = event.data.get("error")
+        await self._save_state()
 
         await self.send_event("monitor", "orchestration.status", {
             "type": "orchestration",
             "status": "error",
             "project_id": self.project_id,
-            "message": f"Task failed: {event.data.get('error')}",
+            "message": f"Task failed after {MAX_RETRIES} attempts: {event.data.get('error')}",
             "api_key": self.api_key
         }, correlation_id=self.correlation_id)
-        
-        # We don't automatically proceed on failure? Or maybe we do?
-        # For now, let it hang or fail.
-        # Could implement retry here.
 
     async def pause_workflow(self):
         self.status = "paused"

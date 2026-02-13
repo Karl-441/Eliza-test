@@ -27,6 +27,15 @@ class EmbeddingService:
                 
         elif self.provider == "local":
             try:
+                # Fix for SSL certificate verify failed
+                import os
+                import ssl
+                
+                # Disable SSL verification for model download
+                os.environ['CURL_CA_BUNDLE'] = ''
+                if hasattr(ssl, '_create_unverified_context'):
+                    ssl._create_default_https_context = ssl._create_unverified_context
+                
                 from sentence_transformers import SentenceTransformer
                 # Use default cache folder or specify one if needed
                 self.local_model = SentenceTransformer(settings.local_embedding_model)

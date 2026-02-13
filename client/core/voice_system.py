@@ -31,6 +31,7 @@ class VoiceSystem(QObject):
         self.blocksize = 4096
         
         # VAD Config
+        self.vad_enabled = True
         self.vad_threshold = 0.015
         self.vad_timeout = 1.2
         self.last_speech_time = 0
@@ -110,7 +111,7 @@ class VoiceSystem(QObject):
                         rms = float(np.sqrt(np.mean(chunk**2)))
                         self.level_changed.emit(rms)
                         
-                        if rms > self.vad_threshold:
+                        if (not self.vad_enabled) or (rms > self.vad_threshold):
                             self.last_speech_time = time.time()
                             if not self.is_speaking:
                                 self.is_speaking = True

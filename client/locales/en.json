@@ -235,6 +235,8 @@
     "task_section_status": "Status",
     "task_section_role": "Assigned Role",
     "task_section_deps": "Dependencies",
+    "task_section_model": "Model Used",
+    "task_section_duration": "Duration",
     "task_section_output": "Output",
     "task_output_none": "No output yet.",
     "toast_symbol_info": "ℹ",

@@ -98,6 +98,12 @@ app.include_router(config.router, prefix=API_PREFIX + "/config", tags=["Config"]
 app.include_router(tts_config.router, prefix=API_PREFIX + "/tts", tags=["TTS Configuration"])
 app.include_router(theme.router, prefix=API_PREFIX + "/theme", tags=["Theme"])
 app.include_router(dashboard_router.router, prefix=API_PREFIX + "/dashboard", tags=["Dashboard"])
+
+@app.on_event("startup")
+async def startup_event():
+    from server.core.monitor import monitor_hub
+    await monitor_hub.start()
+    await monitor_hub.start_broadcasting()
 app.include_router(search_router.router, prefix=API_PREFIX, tags=["Search"])
 app.include_router(vision_api.router, prefix=API_PREFIX, tags=["Vision"])
 app.include_router(files.router, prefix=API_PREFIX, tags=["Files"])

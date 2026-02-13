@@ -47,11 +47,28 @@ class TaskDetailDialog(QDialog):
         self.scroll.setWidget(self.content_widget)
         self.form_layout = QVBoxLayout(self.content_widget)
         
-        self.add_section(I18N.t("task_section_description"), self.task_data.get("description", ""))
+        self.add_section(I18N.t("task_section_description"), self.task_data.get("content", self.task_data.get("description", "")))
         self.add_section(I18N.t("task_section_status"), self.task_data.get("status", "").upper())
-        self.add_section(I18N.t("task_section_role"), self.task_data.get("role", ""))
+        
+        role = self.task_data.get("performer") or self.task_data.get("target_role") or self.task_data.get("role", "Unknown")
+        self.add_section(I18N.t("task_section_role"), role)
+        
         self.add_section(I18N.t("task_section_deps"), ", ".join(self.task_data.get("dependencies", [])))
-        self.add_section(I18N.t("task_section_output"), self.task_data.get("result", "") or I18N.t("task_output_none"))
+        
+        if "model" in self.task_data:
+             self.add_section(I18N.t("task_section_model"), self.task_data["model"])
+        
+        if "duration" in self.task_data:
+             try:
+                 dur = float(self.task_data["duration"])
+                 self.add_section(I18N.t("task_section_duration"), f"{dur:.2f}s")
+             except:
+                 pass
+        
+        if self.task_data.get("status") == "failed":
+             self.add_section(I18N.t("task_section_error"), self.task_data.get("error", "Unknown Error"))
+        else:
+             self.add_section(I18N.t("task_section_output"), self.task_data.get("output", self.task_data.get("result", "")) or I18N.t("task_output_none"))
         
         self.content_layout.addWidget(self.scroll)
         

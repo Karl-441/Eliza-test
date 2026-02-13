@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QTextEdit, QLineEdit, QComboBox, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QFileSystemModel, QTreeView, QListWidget, QListWidgetItem, QMessageBox, QTabWidget)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSplitter, QTextEdit, QLineEdit, QComboBox, QTreeWidget, QTreeWidgetItem, QPlainTextEdit, QFileSystemModel, QTreeView, QListWidget, QListWidgetItem, QMessageBox, QTabWidget, QProgressBar, QGroupBox, QGridLayout)
 from PyQt5.QtCore import Qt, pyqtSignal, QDir
 from PyQt5.QtGui import QPainter, QColor, QPixmap, QIcon
 from ..components import TacticalFrame, TacticalButton, ChatBubble, TacticalToast
@@ -10,6 +10,85 @@ from .task_detail_dialog import TaskDetailDialog
 from .components import UniversalContextMenu
 import uuid
 import webbrowser
+
+class SystemMonitorWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(5, 5, 5, 5)
+        
+        # System Resources
+        self.grp_sys = QGroupBox(I18N.t("monitor_system")) if hasattr(I18N, 't') else QGroupBox("System")
+        self.grp_sys.setStyleSheet(f"QGroupBox {{ border: 1px solid {THEME.get_color('border')}; margin-top: 6px; font-weight: bold; }} QGroupBox::title {{ subcontrol-origin: margin; left: 10px; padding: 0 3px; color: {THEME.get_color('accent')}; }}")
+        l_sys = QVBoxLayout(self.grp_sys)
+        l_sys.setSpacing(2)
+        
+        # CPU
+        self.lbl_cpu = QLabel("CPU: 0%")
+        self.lbl_cpu.setStyleSheet("color: #E6B450; font-family: 'JetBrains Mono'; font-size: 10px;")
+        self.bar_cpu = QProgressBar()
+        self.bar_cpu.setRange(0, 100)
+        self.bar_cpu.setTextVisible(False)
+        self.bar_cpu.setFixedHeight(4)
+        self.bar_cpu.setStyleSheet("QProgressBar { background: #333; border: none; } QProgressBar::chunk { background-color: #E6B450; }")
+        
+        # Memory
+        self.lbl_mem = QLabel("MEM: 0/0 GB")
+        self.lbl_mem.setStyleSheet("color: #508CE6; font-family: 'JetBrains Mono'; font-size: 10px;")
+        self.bar_mem = QProgressBar()
+        self.bar_mem.setRange(0, 100)
+        self.bar_mem.setTextVisible(False)
+        self.bar_mem.setFixedHeight(4)
+        self.bar_mem.setStyleSheet("QProgressBar { background: #333; border: none; } QProgressBar::chunk { background-color: #508CE6; }")
+        
+        l_sys.addWidget(self.lbl_cpu)
+        l_sys.addWidget(self.bar_cpu)
+        l_sys.addWidget(self.lbl_mem)
+        l_sys.addWidget(self.bar_mem)
+        
+        self.layout.addWidget(self.grp_sys)
+        
+        # Task Status
+        self.grp_tasks = QGroupBox(I18N.t("monitor_tasks")) if hasattr(I18N, 't') else QGroupBox("Tasks")
+        self.grp_tasks.setStyleSheet(f"QGroupBox {{ border: 1px solid {THEME.get_color('border')}; margin-top: 6px; font-weight: bold; }} QGroupBox::title {{ subcontrol-origin: margin; left: 10px; padding: 0 3px; color: {THEME.get_color('accent')}; }}")
+        l_tasks = QGridLayout(self.grp_tasks)
+        l_tasks.setSpacing(4)
+        
+        self.lbl_pending = QLabel("Pending: 0")
+        self.lbl_running = QLabel("Running: 0")
+        self.lbl_completed = QLabel("Done: 0")
+        self.lbl_failed = QLabel("Failed: 0")
+        
+        # Style labels
+        self.lbl_pending.setStyleSheet("color: #AAAAAA; font-size: 10px; font-family: 'JetBrains Mono';")
+        self.lbl_running.setStyleSheet("color: #E6B450; font-size: 10px; font-weight: bold; font-family: 'JetBrains Mono';")
+        self.lbl_completed.setStyleSheet("color: #50E6B4; font-size: 10px; font-family: 'JetBrains Mono';")
+        self.lbl_failed.setStyleSheet("color: #E65050; font-size: 10px; font-family: 'JetBrains Mono';")
+        
+        l_tasks.addWidget(self.lbl_pending, 0, 0)
+        l_tasks.addWidget(self.lbl_running, 0, 1)
+        l_tasks.addWidget(self.lbl_completed, 1, 0)
+        l_tasks.addWidget(self.lbl_failed, 1, 1)
+        
+        self.layout.addWidget(self.grp_tasks)
+        
+    def update_stats(self, stats):
+        cpu = stats.get("cpu_percent", 0)
+        mem_used = stats.get("memory_used_gb", 0)
+        mem_total = stats.get("memory_total_gb", 0)
+        mem_percent = stats.get("memory_percent", 0)
+        
+        self.lbl_cpu.setText(f"CPU: {cpu}%")
+        self.bar_cpu.setValue(int(cpu))
+        
+        self.lbl_mem.setText(f"MEM: {mem_used}/{mem_total} GB")
+        self.bar_mem.setValue(int(mem_percent))
+
+    def update_task_stats(self, counts):
+        self.lbl_pending.setText(f"Pending: {counts.get('pending', 0)}")
+        self.lbl_running.setText(f"Running: {counts.get('in_progress', 0)}")
+        self.lbl_completed.setText(f"Done: {counts.get('completed', 0)}")
+        self.lbl_failed.setText(f"Failed: {counts.get('failed', 0)}")
 
 class MultiAgentWidget(QWidget):
     close_requested = pyqtSignal()
@@ -99,18 +178,26 @@ class MultiAgentWidget(QWidget):
         self.combo_template.addItem(I18N.t("ma_template_sw"), "software_team")
         self.combo_template.setToolTip(I18N.t("ma_template_tooltip"))
         
-        self.btn_new_project = TacticalButton(I18N.t("ma_btn_new"))
+        self.btn_new_project = TacticalButton(I18N.t("ma_btn_new"), "accent")
         self.btn_new_project.clicked.connect(self.create_project)
         bar.addWidget(self.inp_project)
         bar.addWidget(self.combo_template)
         bar.addWidget(self.btn_new_project)
         layout.addLayout(bar)
+        
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
+        self.tree.setStyleSheet("QTreeWidget { background: transparent; border: none; }")
         self.tree.itemClicked.connect(self.on_tree_clicked)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self.show_project_context_menu)
         layout.addWidget(self.tree)
+        
+        # System Monitor
+        self.sys_monitor = SystemMonitorWidget()
+        layout.addWidget(self.sys_monitor)
+        
+        # Agent Bar
         self.agent_bar = QHBoxLayout()
         self.inp_role = QLineEdit()
         self.inp_role.setPlaceholderText(I18N.t("ma_agent_role"))
@@ -180,6 +267,7 @@ class MultiAgentWidget(QWidget):
         self.inp_chat.setPlaceholderText(I18N.t("ma_input_placeholder"))
         self.btn_send_chat = TacticalButton(I18N.t("ma_btn_send"))
         self.btn_send_chat.clicked.connect(self.send_chat)
+        self.inp_chat.returnPressed.connect(self.send_chat)
         h = QHBoxLayout()
         h.addWidget(self.inp_chat)
         h.addWidget(self.btn_send_chat)
@@ -236,16 +324,30 @@ class MultiAgentWidget(QWidget):
                  self.dag_widget.view.update_graph(tasks)
                  # Update agent status in tree based on tasks
                  self.update_agent_status(tasks)
+                 
+                 # Update Task Monitor
+                 counts = {"pending": 0, "in_progress": 0, "completed": 0, "failed": 0}
+                 for t in tasks:
+                     s = t.get("status", "pending")
+                     counts[s] = counts.get(s, 0) + 1
+                 if hasattr(self, 'sys_monitor'):
+                     self.sys_monitor.update_task_stats(counts)
         except Exception as e:
              print(f"Workflow fetch error: {e}")
 
     def show_task_detail(self, task_id):
+        # Refresh to ensure fresh logs/data
+        self.refresh_workflow_view()
+        
         # Find task data from DAG visualizer cache
         tasks = self.dag_widget.view.tasks_data
         task = next((t for t in tasks if t['id'] == task_id), None)
+        
         if task:
             dialog = TaskDetailDialog(self, task)
             dialog.exec_()
+        else:
+            TacticalToast.show_toast(self, f"Task {task_id} details not found.", "warning")
 
     def get_status_icon(self, status):
         pixmap = QPixmap(16, 16)

@@ -66,6 +66,41 @@ class APIClient:
             print(f"Error clearing memory: {e}")
             return False
 
+    def get_memories(self, layer_name: str):
+        try:
+            response = requests.get(f"{self.base_url}/api/v1/profile/layers/{layer_name}", headers=self._get_headers())
+            if response.status_code == 200:
+                return response.json()
+            return {"count": 0, "memories": []}
+        except Exception as e:
+            print(f"Error getting memories: {e}")
+            return {"count": 0, "memories": []}
+
+    def search_memories(self, layer_name: str, query: str):
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/v1/profile/layers/{layer_name}/search", 
+                json={"content": query}, 
+                headers=self._get_headers()
+            )
+            if response.status_code == 200:
+                return response.json()
+            return []
+        except Exception as e:
+            print(f"Error searching memories: {e}")
+            return []
+
+    def delete_memory_item(self, layer_name: str, memory_id: int):
+        try:
+            response = requests.delete(
+                f"{self.base_url}/api/v1/profile/layers/{layer_name}/{memory_id}", 
+                headers=self._get_headers()
+            )
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Error deleting memory: {e}")
+            return False
+
     def get_config(self):
         try:
             response = requests.get(f"{self.base_url}/api/v1/config/", headers=self._get_headers())

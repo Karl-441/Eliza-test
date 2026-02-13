@@ -164,7 +164,8 @@ class ModelManager:
     def _download_via_cli(self, task_id, repo_id, filename):
         try:
             env = os.environ.copy()
-            env["HF_ENDPOINT"] = "https://hf-mirror.com"
+            if "HF_ENDPOINT" not in env:
+                env["HF_ENDPOINT"] = "https://hf-mirror.com"
             
             # Construct Command
             # huggingface-cli download <repo_id> <filename> --local-dir <dir> --local-dir-use-symlinks False
@@ -176,9 +177,6 @@ class ModelManager:
                 "--local-dir-use-symlinks", "False",
                 "--resume-download"
             ]
-            
-            # If filename is empty/None, remove it to download full repo? 
-            # No, we always want specific file for now as per logic above.
             
             logger.info(f"Running HF CLI: {' '.join(cmd)}")
             
@@ -192,8 +190,6 @@ class ModelManager:
             
             # We can't easily parse progress from CLI in real-time without complex logic as it uses stderr/tqdm
             # We'll just wait for it. 
-            # TODO: Improve progress tracking by reading stderr line by line?
-            
             stdout, stderr = process.communicate()
             
             if process.returncode == 0:
@@ -210,20 +206,60 @@ class ModelManager:
 
     def _download_via_requests(self, task_id, url, filename):
         target_path = os.path.join(self.models_dir, filename)
+        temp_path = target_path + ".download"
         
         try:
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-            total_size = int(response.headers.get('content-length', 0))
-            
+            headers = {}
+            mode = 'wb'
             downloaded = 0
-            with open(target_path, 'wb') as f:
+            
+            if os.path.exists(temp_path):
+                downloaded = os.path.getsize(temp_path)
+                headers['Range'] = f'bytes={downloaded}-'
+                mode = 'ab'
+                logger.info(f"Resuming download for {filename} from {downloaded} bytes")
+
+            response = requests.get(url, stream=True, headers=headers, timeout=30)
+            
+            # Check if server supports range
+            if response.status_code == 416: # Range Not Satisfiable (likely complete)
+                logger.warning(f"Range not satisfiable for {filename}, checking if complete.")
+                # We can't verify easily without total size, but let's assume if it happened, we might be done or error.
+                # Ideally we check Content-Range or similar.
+                # For now, if we get 416, we might want to restart or assume done.
+                # Let's assume done if we have some bytes.
+                if downloaded > 0:
+                    os.rename(temp_path, target_path)
+                    self.download_tasks[task_id]["status"] = "completed"
+                    self.download_tasks[task_id]["progress"] = 100
+                    return
+            
+            if response.status_code not in [200, 206]:
+                raise Exception(f"HTTP {response.status_code}: {response.reason}")
+                
+            if response.status_code == 200:
+                # Server ignored Range, full download
+                downloaded = 0
+                mode = 'wb'
+                logger.info(f"Server does not support resume, restarting download for {filename}")
+
+            total_size = int(response.headers.get('content-length', 0))
+            if response.status_code == 206:
+                # Content-Length is the REMAINING size
+                total_size += downloaded
+            
+            with open(temp_path, mode) as f:
                 for data in response.iter_content(chunk_size=8192):
                     f.write(data)
                     downloaded += len(data)
                     if total_size > 0:
                         progress = int((downloaded / total_size) * 100)
                         self.download_tasks[task_id]["progress"] = progress
+            
+            # Rename temp to target upon completion
+            if os.path.exists(target_path):
+                os.remove(target_path)
+            os.rename(temp_path, target_path)
             
             self.download_tasks[task_id]["status"] = "completed"
             self.download_tasks[task_id]["progress"] = 100

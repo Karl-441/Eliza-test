@@ -13,6 +13,7 @@ from ..framework.i18n import I18N
 from .voice_widget import VoiceControlWidget
 from .settings_dialog import SettingsDialog
 from .multi_agent_ui import MultiAgentWidget
+from .memory_dialog import MemoryManagementDialog
 
 # New Architecture Imports
 from ..framework.theme import THEME
@@ -459,10 +460,11 @@ class MainWindow(QMainWindow):
         input_toolbar = QHBoxLayout()
         input_toolbar.setSpacing(THEME.spacing["s"])
         
-        btn_emoji = QPushButton("☺")
-        btn_emoji.setFixedSize(28, 28)
-        btn_emoji.setCursor(Qt.PointingHandCursor)
-        btn_emoji.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: none; font-size: 18px;")
+        self.btn_emoji = QPushButton("☺")
+        self.btn_emoji.setFixedSize(28, 28)
+        self.btn_emoji.setCursor(Qt.PointingHandCursor)
+        self.btn_emoji.setStyleSheet(f"background: transparent; color: {THEME.get_color('accent')}; border: none; font-size: 18px;")
+        self.btn_emoji.clicked.connect(self.show_emoji_menu)
         
         btn_attach = QPushButton("📂")
         btn_attach.setFixedSize(32, 32)
@@ -475,7 +477,7 @@ class MainWindow(QMainWindow):
         self.chk_enter_send.setStyleSheet(f"color: {THEME.get_color('text_secondary')}; font-size: 12px;")
         self.chk_enter_send.stateChanged.connect(self.toggle_enter_behavior)
         
-        input_toolbar.addWidget(btn_emoji)
+        input_toolbar.addWidget(self.btn_emoji)
         input_toolbar.addWidget(btn_attach)
         input_toolbar.addStretch()
         input_toolbar.addWidget(self.chk_enter_send)
@@ -861,6 +863,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'voice_ctrl'):
             # Map slider 1-50 to 0.01 - 0.50
             self.voice_system.vad_threshold = self.voice_ctrl.slider_thresh.value() / 100.0
+            self.voice_system.vad_enabled = self.voice_ctrl.chk_vad.isChecked()
 
     def on_silence_detected(self):
         pass # Managed by VoiceSystem internally via server commit
@@ -909,6 +912,8 @@ class MainWindow(QMainWindow):
 
     def manage_memory(self):
         self.add_system_message(I18N.t("memory_management_accessed"))
+        dialog = MemoryManagementDialog(self.client, self)
+        dialog.exec_()
 
     def clear_memory(self):
         self.worker_mem = Worker(self.client.clear_memory)
@@ -1013,6 +1018,33 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, I18N.t("select_attachment"), "", "All Files (*)")
         if path:
             self.input_box.append(I18N.t("attachment_tag").format(os.path.basename(path)))
+
+    def show_emoji_menu(self):
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {THEME.get_color('background_secondary')};
+                color: {THEME.get_color('text_primary')};
+                border: 1px solid {THEME.get_color('border')};
+            }}
+            QMenu::item {{
+                padding: 5px 15px;
+            }}
+            QMenu::item:selected {{
+                background-color: {THEME.get_color('accent')};
+                color: {THEME.get_color('background')};
+            }}
+        """)
+        emojis = ["👍", "👎", "😄", "😢", "🎉", "❤️", "🚀", "🤔", "👀", "✅"]
+        for emoji in emojis:
+            action = menu.addAction(emoji)
+            action.triggered.connect(lambda checked, e=emoji: self.input_box.insertPlainText(e))
+        
+        # Position menu below the button
+        pos = self.btn_emoji.mapToGlobal(self.btn_emoji.rect().bottomLeft())
+        # Adjust y slightly to avoid overlapping or being too far
+        pos.setY(pos.y() + 5)
+        menu.exec_(pos)
 
     def toggle_enter_behavior(self, state):
         self.input_box.set_send_on_enter(self.chk_enter_send.isChecked())

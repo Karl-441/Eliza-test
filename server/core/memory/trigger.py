@@ -1,6 +1,7 @@
 from server.core.memory.vector_store import vector_store
 from server.core.config import settings
 import re
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,13 +45,41 @@ class MemoryTrigger:
         return self._synthesize_context(triggers), triggers
 
     def _is_active_recall_intent(self, text: str) -> bool:
-        # TODO: Use LLM for better intent classification
+        # 1. Fast Regex Check (Keep for latency optimization)
         patterns = [
             r"remember", r"recall", r"what did i say", r"history", 
             r"last time", r"yesterday", r"before", r"mentioned"
         ]
         combined_pattern = "|".join(patterns)
-        return bool(re.search(combined_pattern, text, re.IGNORECASE))
+        if re.search(combined_pattern, text, re.IGNORECASE):
+            return True
+
+        # 2. LLM Classification (For implicit intent)
+        # Use local LLM to detect if user is asking about the past
+        try:
+            from server.core.llm import llm_engine
+            
+            # Skip if model not ready to avoid long waits or errors
+            if llm_engine.status != "ready":
+                return False
+
+            prompt = """
+Analyze if the user is asking to recall a past memory, conversation, or fact from history.
+Respond ONLY with a JSON object: {"is_recall": true} or {"is_recall": false}.
+"""
+            # Call LLM: user_input=text, system_prompt=prompt
+            response = llm_engine.generate_response(text, prompt)
+            
+            # Parse JSON
+            match = re.search(r"\{.*\}", response, re.DOTALL)
+            if match:
+                data = json.loads(match.group(0))
+                return data.get("is_recall", False)
+                
+        except Exception as e:
+            logger.warning(f"LLM intent check failed: {e}")
+            
+        return False
 
     def _synthesize_context(self, triggers: dict) -> str:
         context_parts = []

@@ -46,16 +46,52 @@ class VectorStore:
         with SessionLocal() as db:
             all_memories = db.query(model).all()
         
-        results = []
-        for mem in all_memories:
-            if not mem.embedding:
-                continue
-            sim = self._cosine_similarity_py(query_embedding, mem.embedding)
-            if sim >= threshold:
-                results.append({"memory": mem, "similarity": sim})
-        
-        results.sort(key=lambda x: x["similarity"], reverse=True)
-        return results[:limit]
+        if not all_memories:
+            return []
+
+        # Filter out empty embeddings
+        valid_memories = [m for m in all_memories if m.embedding]
+        if not valid_memories:
+            return []
+            
+        try:
+            # Vectorized calculation for performance
+            matrix = np.array([m.embedding for m in valid_memories]) # Shape (N, D)
+            query = np.array(query_embedding) # Shape (D,)
+            
+            # Normalize
+            norm_matrix = np.linalg.norm(matrix, axis=1)
+            norm_query = np.linalg.norm(query)
+            
+            if norm_query == 0:
+                return []
+                
+            # Avoid division by zero
+            norm_matrix[norm_matrix == 0] = 1e-10
+            
+            # Cosine similarity
+            dot_products = np.dot(matrix, query)
+            similarities = dot_products / (norm_matrix * norm_query)
+            
+            # Collect results
+            results = []
+            for i, sim in enumerate(similarities):
+                if sim >= threshold:
+                    results.append({"memory": valid_memories[i], "similarity": float(sim)})
+            
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+            return results[:limit]
+            
+        except Exception as e:
+            logger.error(f"Vector search failed: {e}")
+            # Fallback to slow loop if numpy fails for some reason
+            results = []
+            for mem in valid_memories:
+                sim = self._cosine_similarity_py(query_embedding, mem.embedding)
+                if sim >= threshold:
+                    results.append({"memory": mem, "similarity": sim})
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+            return results[:limit]
 
     # Instinct Layer
     def add_instinct(self, content: str, trait_type: str, strength: float = 1.0):
@@ -161,6 +197,24 @@ class VectorStore:
             except Exception as e:
                 logger.error(f"Error searching active recall memory: {e}")
                 return []
+
+    def delete_memory(self, layer_name: str, memory_id: int):
+        with SessionLocal() as db:
+            if layer_name == "instinct":
+                model = InstinctMemory
+            elif layer_name == "subconscious":
+                model = SubconsciousMemory
+            elif layer_name == "active_recall":
+                model = ActiveRecallMemory
+            else:
+                return False
+                
+            memory = db.query(model).filter(model.id == memory_id).first()
+            if memory:
+                db.delete(memory)
+                db.commit()
+                return True
+            return False
 
     def get_all_memories(self, layer: str):
         with SessionLocal() as db:
