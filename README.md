@@ -2,14 +2,6 @@
 
 [中文](README.md) | [English](#english-version)
 
-<div align="center">
-  <img src="client/assets/griffin_logo.png" alt="Eliza Logo" width="200" />
-  <h3>Tactical Local AI Assistant / 战术风格本地 AI 助手</h3>
-  <p>Inspired by <i>Girls' Frontline</i> | 基于本地 LLM 与 GPT-SoVITS 构建</p>
-</div>
-
----
-
 ## 📖 项目简介 (Introduction)
 
 **Eliza** 是一个运行在本地的高级 AI 助手系统。
