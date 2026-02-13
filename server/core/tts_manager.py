@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional, Dict
 from pydantic import BaseModel
 
-DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "tts_models.json")
+DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "tts_models.json")
 
 class TTSModelConfig(BaseModel):
     id: str
